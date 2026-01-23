@@ -247,10 +247,10 @@ impl MerkleTreeBuilder {
 
     /// Get the Merkle root.
     pub fn root(&self) -> [u8; 32] {
-        if let Some(top) = self.levels.last()
-            && let Some(root) = top.first()
-        {
-            return *root;
+        if let Some(top) = self.levels.last() {
+            if let Some(root) = top.first() {
+                return *root;
+            }
         }
         // Empty tree - return special hash
         let mut hasher = Blake3::new();

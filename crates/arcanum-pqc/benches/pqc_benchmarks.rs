@@ -5,7 +5,7 @@
 
 #![allow(unused_imports, clippy::redundant_closure)]
 
-use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ML-KEM-768 Benchmarks (using typed wrapper API)

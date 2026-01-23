@@ -12,8 +12,8 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[cfg(feature = "signatures")]
 use arcanum_signatures::{
-    Signature, SigningKey, VerifyingKey,
     ed25519::{Ed25519Signature, Ed25519SigningKey, Ed25519VerifyingKey},
+    Signature, SigningKey, VerifyingKey,
 };
 
 #[cfg(feature = "encryption")]
@@ -741,11 +741,9 @@ mod tests {
         let container = HoloCrypt::seal(&data, &sealing_key).unwrap();
 
         // Third party can verify structure with just the verifying key
-        assert!(
-            container
-                .verify_structure(&opening_key.verifying_key)
-                .is_ok()
-        );
+        assert!(container
+            .verify_structure(&opening_key.verifying_key)
+            .is_ok());
     }
 
     #[test]

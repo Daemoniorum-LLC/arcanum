@@ -367,12 +367,10 @@ mod tests {
         let message = b"Hello, Arcanum!";
         let signature = signing_key.sign(message);
 
-        assert!(
-            wrong_key
-                .verifying_key()
-                .verify(message, &signature)
-                .is_err()
-        );
+        assert!(wrong_key
+            .verifying_key()
+            .verify(message, &signature)
+            .is_err());
     }
 
     #[test]

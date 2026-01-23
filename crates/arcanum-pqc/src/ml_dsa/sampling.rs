@@ -12,7 +12,7 @@
 // Allow unsafe code when SIMD is enabled for 4-way Keccak optimization
 #![cfg_attr(all(feature = "simd", target_arch = "x86_64"), allow(unsafe_code))]
 
-use super::params::{MlDsaParams, N, Params44, Params65, Params87, Q};
+use super::params::{MlDsaParams, Params44, Params65, Params87, N, Q};
 use super::poly::Poly;
 use arcanum_primitives::shake::{Shake128, Shake256};
 

@@ -4,14 +4,14 @@
 
 #![allow(clippy::unit_arg)]
 
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 #[cfg(feature = "rsa")]
 use criterion::{BenchmarkId, Throughput};
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 #[cfg(feature = "rsa")]
 use arcanum_asymmetric::RsaPrivateKey;
 use arcanum_asymmetric::{
-    P256SecretKey, P384SecretKey, X25519PublicKey, X25519SecretKey, x25519::X25519,
+    x25519::X25519, P256SecretKey, P384SecretKey, X25519PublicKey, X25519SecretKey,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════

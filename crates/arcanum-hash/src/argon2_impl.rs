@@ -12,8 +12,8 @@
 use crate::traits::PasswordHash;
 use arcanum_core::error::{Error, Result};
 use argon2::{
-    Algorithm, Argon2 as Argon2Inner, Params, Version,
     password_hash::{PasswordHasher, PasswordVerifier, SaltString},
+    Algorithm, Argon2 as Argon2Inner, Params, Version,
 };
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};

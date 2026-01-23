@@ -712,7 +712,7 @@ mod acvp_debug {
     #[test]
     fn trace_ml_dsa_87_sign_verify() {
         use crate::ml_dsa::keygen::{generate_keypair_internal, pack_pk, pack_sk, unpack_pk};
-        use crate::ml_dsa::params::{D, MlDsaParams, N, Params87, Q};
+        use crate::ml_dsa::params::{MlDsaParams, Params87, D, N, Q};
         use crate::ml_dsa::poly::Poly;
         use crate::ml_dsa::rounding::{decompose, high_bits, use_hint};
         use crate::ml_dsa::sampling::{expand_a, sample_in_ball};
@@ -855,7 +855,7 @@ mod spec_invariants {
     //! 2. UseHint(MakeHint(-ct₀, r), r) = HighBits(r + (-ct₀)) (Section 5.6.2-5.6.3)
     //! 3. After rejection: HighBits(w - cs₂) = HighBits(w) (Section 5.6.4)
 
-    use crate::ml_dsa::params::{MlDsaParams, N, Params44, Params65, Params87, Q};
+    use crate::ml_dsa::params::{MlDsaParams, Params44, Params65, Params87, N, Q};
     use crate::ml_dsa::poly::Poly;
     use crate::ml_dsa::rounding::{decompose, high_bits, make_hint, use_hint};
 
@@ -1159,7 +1159,7 @@ mod w1_divergence_debug {
     use crate::ml_dsa::keygen::{
         generate_keypair_internal, pack_pk, pack_sk, unpack_pk, unpack_sk,
     };
-    use crate::ml_dsa::params::{D, MlDsaParams, N, Params87, Q};
+    use crate::ml_dsa::params::{MlDsaParams, Params87, D, N, Q};
     use crate::ml_dsa::poly::Poly;
     use crate::ml_dsa::rounding::{high_bits, use_hint};
     use crate::ml_dsa::sampling::{expand_a, expand_mask, sample_in_ball};
@@ -1363,7 +1363,7 @@ mod w1_divergence_debug {
     #[test]
     fn test_w_prime_computation_consistency() {
         use crate::ml_dsa::keygen::{generate_keypair_internal, pack_pk, pack_sk, unpack_sk};
-        use crate::ml_dsa::params::{D, MlDsaParams, N, Params87, Q};
+        use crate::ml_dsa::params::{MlDsaParams, Params87, D, N, Q};
         use crate::ml_dsa::poly::Poly;
         use crate::ml_dsa::rounding::{high_bits, poly_power2round};
         use crate::ml_dsa::sampling::{expand_a, expand_mask, sample_in_ball};
@@ -1549,7 +1549,7 @@ mod w1_divergence_debug {
     #[test]
     fn test_signing_invariant_full_loop() {
         use crate::ml_dsa::keygen::generate_keypair_internal;
-        use crate::ml_dsa::params::{MlDsaParams, N, Params87, Q};
+        use crate::ml_dsa::params::{MlDsaParams, Params87, N, Q};
         use crate::ml_dsa::poly::Poly;
         use crate::ml_dsa::rounding::{decompose, high_bits};
         use crate::ml_dsa::sampling::{expand_a, expand_mask, sample_in_ball};
@@ -1803,7 +1803,7 @@ mod w1_divergence_debug {
         use crate::ml_dsa::keygen::{
             generate_keypair_internal, pack_pk, pack_sk, unpack_pk, unpack_sk,
         };
-        use crate::ml_dsa::params::{D, MlDsaParams, N, Params87, Q};
+        use crate::ml_dsa::params::{MlDsaParams, Params87, D, N, Q};
         use crate::ml_dsa::poly::Poly;
         use crate::ml_dsa::rounding::{high_bits, make_hint, poly_decompose, use_hint};
         use crate::ml_dsa::sampling::{expand_a, expand_mask, sample_in_ball};
@@ -2265,7 +2265,7 @@ mod w1_divergence_debug {
     #[test]
     fn test_eta_pack_unpack_roundtrip() {
         use crate::ml_dsa::keygen::{generate_keypair_internal, pack_sk, unpack_sk};
-        use crate::ml_dsa::params::{N, Params87};
+        use crate::ml_dsa::params::{Params87, N};
 
         println!("\n=== Testing eta pack/unpack roundtrip ===\n");
 
@@ -2337,7 +2337,7 @@ mod w1_divergence_debug {
     /// Test z packing/unpacking roundtrip
     #[test]
     fn test_z_pack_unpack_roundtrip() {
-        use crate::ml_dsa::params::{N, Params87};
+        use crate::ml_dsa::params::{Params87, N};
         use crate::ml_dsa::poly::Poly;
         use crate::ml_dsa::sign::{pack_signature, unpack_signature};
 
@@ -2396,7 +2396,7 @@ mod w1_divergence_debug {
         use crate::ml_dsa::keygen::{
             generate_keypair_internal, pack_pk, pack_sk, unpack_pk, unpack_sk,
         };
-        use crate::ml_dsa::params::{D, N, Params87, Q};
+        use crate::ml_dsa::params::{Params87, D, N, Q};
         use crate::ml_dsa::poly::Poly;
         use crate::ml_dsa::rounding::poly_decompose;
         use crate::ml_dsa::sampling::{expand_a, expand_mask, sample_in_ball};
@@ -2601,7 +2601,7 @@ mod w1_divergence_debug {
     #[test]
     fn test_az_equals_ay_plus_cas1() {
         use crate::ml_dsa::keygen::generate_keypair_internal;
-        use crate::ml_dsa::params::{D, N, Params87, Q};
+        use crate::ml_dsa::params::{Params87, D, N, Q};
         use crate::ml_dsa::poly::Poly;
         use crate::ml_dsa::sampling::{expand_a, expand_mask, sample_in_ball};
 
@@ -2768,7 +2768,7 @@ mod w1_divergence_debug {
     #[test]
     fn test_power2round_decomposition_with_ntt() {
         use crate::ml_dsa::keygen::generate_keypair_internal;
-        use crate::ml_dsa::params::{D, N, Params87, Q};
+        use crate::ml_dsa::params::{Params87, D, N, Q};
         use crate::ml_dsa::poly::Poly;
         use crate::ml_dsa::rounding::poly_power2round;
         use crate::ml_dsa::sampling::sample_in_ball;

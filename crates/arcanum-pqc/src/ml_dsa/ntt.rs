@@ -323,7 +323,11 @@ mod tests {
         // Reduce to positive values in [0, q)
         let normalize = |x: i32| -> i32 {
             let r = reduce32(x);
-            if r < 0 { r + Q } else { r }
+            if r < 0 {
+                r + Q
+            } else {
+                r
+            }
         };
 
         // Expected: (1 + 2x)(3 + 4x) = 3 + 10x + 8x^2

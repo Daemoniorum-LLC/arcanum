@@ -28,8 +28,8 @@ use arcanum_core::error::{Error, Result};
 use rand::rngs::OsRng;
 use rsa::signature::{RandomizedSigner, SignatureEncoding, Verifier};
 use rsa::{
-    Oaep, Pkcs1v15Encrypt, Pkcs1v15Sign, Pss, RsaPrivateKey as InnerPrivateKey,
-    RsaPublicKey as InnerPublicKey, traits::PublicKeyParts,
+    traits::PublicKeyParts, Oaep, Pkcs1v15Encrypt, Pkcs1v15Sign, Pss,
+    RsaPrivateKey as InnerPrivateKey, RsaPublicKey as InnerPublicKey,
 };
 use sha2::{Sha256, Sha384, Sha512};
 use zeroize::ZeroizeOnDrop;

@@ -118,7 +118,11 @@ pub mod stats {
 
         let se = (var1 / n1 + var2 / n2).sqrt();
 
-        if se == 0.0 { 0.0 } else { (mean1 - mean2) / se }
+        if se == 0.0 {
+            0.0
+        } else {
+            (mean1 - mean2) / se
+        }
     }
 
     /// Threshold for timing leak detection.

@@ -5,7 +5,7 @@
 //! - FROST threshold signatures (2-round signing)
 //! - Distributed Key Generation (DKG)
 
-use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Shamir Secret Sharing Benchmarks
@@ -62,8 +62,8 @@ fn bench_shamir(c: &mut Criterion) {
 #[cfg(feature = "frost")]
 fn bench_frost(c: &mut Criterion) {
     use arcanum_threshold::frost::{
-        FrostSigner, FrostVerifier, GroupVerifyingKey, PublicKeyPackage, SigningPackage,
-        trusted_dealer_keygen,
+        trusted_dealer_keygen, FrostSigner, FrostVerifier, GroupVerifyingKey, PublicKeyPackage,
+        SigningPackage,
     };
 
     let mut group = c.benchmark_group("FROST");
@@ -178,7 +178,7 @@ fn bench_frost(c: &mut Criterion) {
 
 #[cfg(feature = "dkg")]
 fn bench_dkg(c: &mut Criterion) {
-    use arcanum_threshold::dkg::{DkgParticipant, run_dkg};
+    use arcanum_threshold::dkg::{run_dkg, DkgParticipant};
 
     let mut group = c.benchmark_group("DKG");
 

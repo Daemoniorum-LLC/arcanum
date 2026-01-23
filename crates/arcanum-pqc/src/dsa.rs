@@ -11,7 +11,7 @@
 
 use crate::traits::PostQuantumSignature;
 use arcanum_core::error::{Error, Result};
-use ml_dsa::{KeyGen, signature::Signer as _, signature::Verifier as _};
+use ml_dsa::{signature::Signer as _, signature::Verifier as _, KeyGen};
 use serde::{Deserialize, Serialize};
 use zeroize::ZeroizeOnDrop;
 

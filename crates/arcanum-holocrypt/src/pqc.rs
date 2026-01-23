@@ -264,7 +264,7 @@ impl<T: Serialize + for<'de> Deserialize<'de>> PqcContainer<T> {
     /// Seal data with PQC envelope encryption.
     #[cfg(all(feature = "encryption", feature = "merkle", feature = "signatures"))]
     pub fn seal(data: &T, recipient_key: &MlKem768EncapsulationKey) -> HoloCryptResult<Self> {
-        use arcanum_signatures::{Signature, SigningKey, VerifyingKey, ed25519::Ed25519SigningKey};
+        use arcanum_signatures::{ed25519::Ed25519SigningKey, Signature, SigningKey, VerifyingKey};
 
         // Generate signing keypair
         let signing_key = Ed25519SigningKey::generate();
@@ -321,8 +321,8 @@ impl<T: Serialize + for<'de> Deserialize<'de>> PqcContainer<T> {
     #[cfg(all(feature = "encryption", feature = "merkle", feature = "signatures"))]
     pub fn unseal(&self, recipient_key: &MlKem768DecapsulationKey) -> HoloCryptResult<T> {
         use arcanum_signatures::{
-            Signature, VerifyingKey,
             ed25519::{Ed25519Signature, Ed25519VerifyingKey},
+            Signature, VerifyingKey,
         };
 
         // Verify signature
@@ -379,8 +379,8 @@ impl<T: Serialize + for<'de> Deserialize<'de>> PqcContainer<T> {
     #[must_use = "verification result must be checked"]
     pub fn verify_structure(&self) -> HoloCryptResult<()> {
         use arcanum_signatures::{
-            Signature, VerifyingKey,
             ed25519::{Ed25519Signature, Ed25519VerifyingKey},
+            Signature, VerifyingKey,
         };
 
         let sign_data =

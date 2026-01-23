@@ -7,8 +7,8 @@ use crate::traits::PasswordHash;
 use arcanum_core::error::{Error, Result};
 use rand::rngs::OsRng;
 use scrypt::{
-    Params, Scrypt as ScryptInner,
     password_hash::{PasswordHasher, PasswordVerifier, SaltString},
+    Params, Scrypt as ScryptInner,
 };
 use serde::{Deserialize, Serialize};
 

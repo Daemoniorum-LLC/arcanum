@@ -12,7 +12,7 @@
 
 #![allow(unused_imports)]
 
-use arcanum_asymmetric::x25519::{X25519, X25519PublicKey, X25519SecretKey, X25519SharedSecret};
+use arcanum_asymmetric::x25519::{X25519PublicKey, X25519SecretKey, X25519SharedSecret, X25519};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // RFC 7748 Test Vectors

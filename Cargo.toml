@@ -28,12 +28,12 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.1"
-edition = "2024"
+version = "0.1.2"
+edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Daemoniorum-LLC/arcanum"
 authors = ["Daemoniorum Engineering <engineering@daemoniorum.com>"]
-rust-version = "1.89"
+rust-version = "1.75"
 keywords = ["cryptography", "security", "encryption", "post-quantum", "zero-knowledge"]
 categories = ["cryptography", "no-std"]
 

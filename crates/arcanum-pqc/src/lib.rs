@@ -81,7 +81,7 @@ mod traits;
 pub use traits::{KeyEncapsulation, PostQuantumSignature};
 
 #[cfg(feature = "ml-kem")]
-pub use kem::{MlKem512, MlKem768, MlKem1024};
+pub use kem::{MlKem1024, MlKem512, MlKem768};
 
 #[cfg(feature = "ml-dsa")]
 pub use dsa::{MlDsa44Ops, MlDsa65, MlDsa87Ops};
@@ -94,7 +94,7 @@ pub mod prelude {
     pub use crate::traits::{KeyEncapsulation, PostQuantumSignature};
 
     #[cfg(feature = "ml-kem")]
-    pub use crate::kem::{MlKem512, MlKem768, MlKem1024};
+    pub use crate::kem::{MlKem1024, MlKem512, MlKem768};
 
     #[cfg(feature = "ml-dsa")]
     pub use crate::dsa::{MlDsa44Ops, MlDsa65, MlDsa87Ops};
