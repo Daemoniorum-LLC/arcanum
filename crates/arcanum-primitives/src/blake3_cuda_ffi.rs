@@ -42,7 +42,7 @@ impl Default for Blake3CudaContext {
 
 // FFI declarations
 #[cfg(feature = "cuda")]
-extern "C" {
+unsafe extern "C" {
     fn blake3_cuda_init(
         ctx: *mut Blake3CudaContext,
         max_buffer_size: usize,

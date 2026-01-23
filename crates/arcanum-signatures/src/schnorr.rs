@@ -51,7 +51,7 @@ impl traits::SigningKey for SchnorrSigningKey {
 
     fn verifying_key(&self) -> Self::VerifyingKey {
         SchnorrVerifyingKey {
-            inner: self.inner.verifying_key().clone(),
+            inner: *self.inner.verifying_key(),
         }
     }
 

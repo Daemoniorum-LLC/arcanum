@@ -34,7 +34,7 @@
 
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use crate::chacha20::{chacha20_block, ChaCha20, KEY_SIZE as CHACHA_KEY_SIZE, NONCE_SIZE};
+use crate::chacha20::{ChaCha20, KEY_SIZE as CHACHA_KEY_SIZE, NONCE_SIZE, chacha20_block};
 use crate::poly1305::{KEY_SIZE as POLY_KEY_SIZE, TAG_SIZE};
 
 // Use SIMD-accelerated Poly1305 when available

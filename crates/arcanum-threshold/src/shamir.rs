@@ -163,10 +163,10 @@ impl ShamirScheme {
 
         // Try reconstruction with different subsets
         if let Ok(secret1) = Self::combine(&shares[..threshold]) {
-            if shares.len() > threshold {
-                if let Ok(secret2) = Self::combine(&shares[1..=threshold]) {
-                    return secret1 == secret2;
-                }
+            if shares.len() > threshold
+                && let Ok(secret2) = Self::combine(&shares[1..=threshold])
+            {
+                return secret1 == secret2;
             }
             return true;
         }

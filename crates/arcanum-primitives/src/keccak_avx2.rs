@@ -8,7 +8,6 @@
 //! feature detection in the public API.
 
 #![allow(dead_code)]
-#![allow(unsafe_code)]
 // Intentional identity operations (0 * 5 + y) for clarity - shows 5x5 state indexing
 #![allow(clippy::identity_op, clippy::erasing_op)]
 
@@ -152,23 +151,21 @@ unsafe fn theta_avx2(lanes: &mut [u64; 25]) {
 #[target_feature(enable = "avx2")]
 #[inline]
 unsafe fn rho_pi_avx2(lanes: &mut [u64; 25]) {
-    unsafe {
-        let mut b = [0u64; 25];
+    let mut b = [0u64; 25];
 
-        // Combined rho and pi: B[y][2x+3y] = ROL(A[x][y], r[x][y])
-        // Unrolled for better performance
-        for x in 0..5 {
-            for y in 0..5 {
-                let src_idx = x * 5 + y;
-                let dst_x = y;
-                let dst_y = (2 * x + 3 * y) % 5;
-                let dst_idx = dst_x * 5 + dst_y;
-                b[dst_idx] = lanes[src_idx].rotate_left(RHO_OFFSETS[src_idx]);
-            }
+    // Combined rho and pi: B[y][2x+3y] = ROL(A[x][y], r[x][y])
+    // Unrolled for better performance
+    for x in 0..5 {
+        for y in 0..5 {
+            let src_idx = x * 5 + y;
+            let dst_x = y;
+            let dst_y = (2 * x + 3 * y) % 5;
+            let dst_idx = dst_x * 5 + dst_y;
+            b[dst_idx] = lanes[src_idx].rotate_left(RHO_OFFSETS[src_idx]);
         }
-
-        *lanes = b;
     }
+
+    *lanes = b;
 }
 
 /// χ (chi) step with AVX2 acceleration
@@ -176,24 +173,22 @@ unsafe fn rho_pi_avx2(lanes: &mut [u64; 25]) {
 #[target_feature(enable = "avx2")]
 #[inline]
 unsafe fn chi_avx2(lanes: &mut [u64; 25]) {
-    unsafe {
-        // For each row y: A[x,y] = B[x,y] ^ (~B[x+1,y] & B[x+2,y])
-        // Process each row independently
-        for y in 0..5 {
-            // Load all 5 values in this row (they're not contiguous, at offsets 0,5,10,15,20 + y)
-            let t0 = lanes[0 * 5 + y];
-            let t1 = lanes[1 * 5 + y];
-            let t2 = lanes[2 * 5 + y];
-            let t3 = lanes[3 * 5 + y];
-            let t4 = lanes[4 * 5 + y];
+    // For each row y: A[x,y] = B[x,y] ^ (~B[x+1,y] & B[x+2,y])
+    // Process each row independently
+    for y in 0..5 {
+        // Load all 5 values in this row (they're not contiguous, at offsets 0,5,10,15,20 + y)
+        let t0 = lanes[0 * 5 + y];
+        let t1 = lanes[1 * 5 + y];
+        let t2 = lanes[2 * 5 + y];
+        let t3 = lanes[3 * 5 + y];
+        let t4 = lanes[4 * 5 + y];
 
-            // Chi step: a = t ^ (~t_next & t_next_next)
-            lanes[0 * 5 + y] = t0 ^ ((!t1) & t2);
-            lanes[1 * 5 + y] = t1 ^ ((!t2) & t3);
-            lanes[2 * 5 + y] = t2 ^ ((!t3) & t4);
-            lanes[3 * 5 + y] = t3 ^ ((!t4) & t0);
-            lanes[4 * 5 + y] = t4 ^ ((!t0) & t1);
-        }
+        // Chi step: a = t ^ (~t_next & t_next_next)
+        lanes[0 * 5 + y] = t0 ^ ((!t1) & t2);
+        lanes[1 * 5 + y] = t1 ^ ((!t2) & t3);
+        lanes[2 * 5 + y] = t2 ^ ((!t3) & t4);
+        lanes[3 * 5 + y] = t3 ^ ((!t4) & t0);
+        lanes[4 * 5 + y] = t4 ^ ((!t0) & t1);
     }
 }
 
@@ -202,48 +197,46 @@ unsafe fn chi_avx2(lanes: &mut [u64; 25]) {
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx2")]
 pub unsafe fn keccak_p_avx2_v2(state: &mut KeccakState) {
-    unsafe {
-        // Use the standard implementation but with better memory access patterns
-        for round in 0..24 {
-            // θ (theta)
-            let mut c = [0u64; 5];
-            for x in 0..5 {
-                c[x] = state[x][0] ^ state[x][1] ^ state[x][2] ^ state[x][3] ^ state[x][4];
-            }
-
-            for x in 0..5 {
-                let d = c[(x + 4) % 5] ^ c[(x + 1) % 5].rotate_left(1);
-                for y in 0..5 {
-                    state[x][y] ^= d;
-                }
-            }
-
-            // ρ and π combined
-            let mut b = [[0u64; 5]; 5];
-            for x in 0..5 {
-                for y in 0..5 {
-                    b[y][(2 * x + 3 * y) % 5] = state[x][y].rotate_left(RHO_OFFSETS[x * 5 + y]);
-                }
-            }
-            *state = b;
-
-            // χ (chi)
-            for y in 0..5 {
-                let t = [
-                    state[0][y],
-                    state[1][y],
-                    state[2][y],
-                    state[3][y],
-                    state[4][y],
-                ];
-                for x in 0..5 {
-                    state[x][y] = t[x] ^ ((!t[(x + 1) % 5]) & t[(x + 2) % 5]);
-                }
-            }
-
-            // ι (iota)
-            state[0][0] ^= RC[round];
+    // Use the standard implementation but with better memory access patterns
+    for round in 0..24 {
+        // θ (theta)
+        let mut c = [0u64; 5];
+        for x in 0..5 {
+            c[x] = state[x][0] ^ state[x][1] ^ state[x][2] ^ state[x][3] ^ state[x][4];
         }
+
+        for x in 0..5 {
+            let d = c[(x + 4) % 5] ^ c[(x + 1) % 5].rotate_left(1);
+            for y in 0..5 {
+                state[x][y] ^= d;
+            }
+        }
+
+        // ρ and π combined
+        let mut b = [[0u64; 5]; 5];
+        for x in 0..5 {
+            for y in 0..5 {
+                b[y][(2 * x + 3 * y) % 5] = state[x][y].rotate_left(RHO_OFFSETS[x * 5 + y]);
+            }
+        }
+        *state = b;
+
+        // χ (chi)
+        for y in 0..5 {
+            let t = [
+                state[0][y],
+                state[1][y],
+                state[2][y],
+                state[3][y],
+                state[4][y],
+            ];
+            for x in 0..5 {
+                state[x][y] = t[x] ^ ((!t[(x + 1) % 5]) & t[(x + 2) % 5]);
+            }
+        }
+
+        // ι (iota)
+        state[0][0] ^= RC[round];
     }
 }
 

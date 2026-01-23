@@ -124,8 +124,8 @@ pub mod types;
 
 pub use encrypted::{EncryptedData, EncryptedPayload};
 pub use traits::{
-    validate_aad_size, validate_input_sizes, validate_plaintext_size, Cipher, StreamCipher,
-    MAX_AAD_SIZE, MAX_PLAINTEXT_SIZE,
+    Cipher, MAX_AAD_SIZE, MAX_PLAINTEXT_SIZE, StreamCipher, validate_aad_size,
+    validate_input_sizes, validate_plaintext_size,
 };
 
 #[cfg(feature = "aes")]

@@ -13,8 +13,8 @@ use crate::traits::KeyEncapsulation;
 use arcanum_core::error::{Error, Result};
 use kem::{Decapsulate, Encapsulate};
 use ml_kem::{
+    EncodedSizeUser, KemCore, MlKem512Params, MlKem768Params, MlKem1024Params,
     kem::{DecapsulationKey, EncapsulationKey},
-    EncodedSizeUser, KemCore, MlKem1024Params, MlKem512Params, MlKem768Params,
 };
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};

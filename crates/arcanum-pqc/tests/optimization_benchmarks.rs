@@ -17,6 +17,7 @@
 //! - `baseline_*`: Record current performance (informational)
 
 #![cfg(feature = "ml-dsa-native")]
+#![allow(dead_code, unused_imports)]
 
 use std::time::{Duration, Instant};
 

@@ -21,8 +21,8 @@ use core::arch::x86_64::*;
 use rayon::prelude::*;
 
 use super::blake3_simd::{
-    compress_auto, has_avx2, has_avx512f, hash_16_chunks_from_ptrs, hash_16_chunks_parallel,
-    hash_8_chunks_from_ptrs, hash_8_chunks_parallel, IV,
+    IV, compress_auto, has_avx2, has_avx512f, hash_8_chunks_from_ptrs, hash_8_chunks_parallel,
+    hash_16_chunks_from_ptrs, hash_16_chunks_parallel,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════

@@ -115,7 +115,7 @@ pub use errors::HoloCryptError;
 pub use container::threshold::{KeyShare, ThresholdContainer};
 
 #[cfg(feature = "selective-disclosure")]
-pub use selective::{verify_chunk, ChunkProof, MerkleTreeBuilder, SelectiveDisclosure};
+pub use selective::{ChunkProof, MerkleTreeBuilder, SelectiveDisclosure, verify_chunk};
 
 #[cfg(feature = "property-proofs")]
 pub use properties::{Property, PropertyProof};

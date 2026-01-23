@@ -1,8 +1,8 @@
 //! AES-based encryption algorithms.
 
-use crate::traits::{validate_input_sizes, Cipher, StreamCipher};
+use crate::traits::{Cipher, StreamCipher, validate_input_sizes};
 use aead::generic_array::GenericArray;
-use aead::{consts::U12, Aead, AeadInPlace, KeyInit, Payload};
+use aead::{Aead, AeadInPlace, KeyInit, Payload, consts::U12};
 use arcanum_core::error::{Error, Result};
 use rand_core::{OsRng, RngCore};
 

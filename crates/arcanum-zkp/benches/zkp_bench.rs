@@ -7,7 +7,7 @@
 
 #![allow(clippy::redundant_closure)]
 
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Bulletproofs Range Proof Benchmarks
@@ -70,7 +70,7 @@ fn bench_range_proofs(c: &mut Criterion) {
 
 #[cfg(feature = "schnorr-proofs")]
 fn bench_schnorr_proofs(c: &mut Criterion) {
-    use arcanum_zkp::curve::{Scalar, RISTRETTO_BASEPOINT_POINT};
+    use arcanum_zkp::curve::{RISTRETTO_BASEPOINT_POINT, Scalar};
     use arcanum_zkp::{DiscreteLogProof, EqualityProof, SchnorrProofBuilder};
     use rand::RngCore;
 

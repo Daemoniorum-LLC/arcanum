@@ -14,7 +14,6 @@
 //! Lane (x,y) of state i is stored in: state_x4[x][y].extract(i)
 
 #![allow(dead_code)]
-#![allow(unsafe_code)]
 
 #[cfg(target_arch = "x86_64")]
 use core::arch::x86_64::*;

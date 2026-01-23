@@ -7,7 +7,7 @@
 
 #![allow(dead_code)]
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 
 // Data sizes for benchmarking (covering various use cases)
 const SIZES: &[usize] = &[64, 256, 1024, 4096, 16384, 65536, 1048576];
@@ -110,7 +110,7 @@ mod blake3_direct {
 
 #[cfg(feature = "bench-ring")]
 mod ring_sha256 {
-    use ring::digest::{digest, SHA256};
+    use ring::digest::{SHA256, digest};
 
     pub fn hash(data: &[u8]) -> Vec<u8> {
         digest(&SHA256, data).as_ref().to_vec()
@@ -119,7 +119,7 @@ mod ring_sha256 {
 
 #[cfg(feature = "bench-ring")]
 mod ring_sha512 {
-    use ring::digest::{digest, SHA512};
+    use ring::digest::{SHA512, digest};
 
     pub fn hash(data: &[u8]) -> Vec<u8> {
         digest(&SHA512, data).as_ref().to_vec()

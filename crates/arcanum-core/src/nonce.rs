@@ -198,12 +198,12 @@ impl<const N: usize> NonceGenerator<N> {
     pub fn generate(&self) -> Result<Nonce<N>> {
         // Check limit and always increment count
         let count = self.generated_count.fetch_add(1, Ordering::SeqCst);
-        if let Some(max) = self.max_nonces {
-            if count >= max {
-                // Revert the increment since we're not generating
-                self.generated_count.fetch_sub(1, Ordering::SeqCst);
-                return Err(Error::NonceExhausted);
-            }
+        if let Some(max) = self.max_nonces
+            && count >= max
+        {
+            // Revert the increment since we're not generating
+            self.generated_count.fetch_sub(1, Ordering::SeqCst);
+            return Err(Error::NonceExhausted);
         }
 
         match self.strategy {

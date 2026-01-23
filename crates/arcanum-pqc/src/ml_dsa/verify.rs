@@ -16,7 +16,7 @@
 #![allow(dead_code)]
 
 use super::keygen::unpack_pk;
-use super::params::{MlDsaParams, D, N, Q};
+use super::params::{D, MlDsaParams, N, Q};
 use super::poly::Poly;
 use super::rounding::use_hint;
 use super::sampling::{expand_a, sample_in_ball};

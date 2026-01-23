@@ -6,7 +6,7 @@
 
 #![allow(clippy::redundant_closure)]
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 
 // Message sizes for benchmarking
 const SIZES: &[usize] = &[32, 256, 1024, 4096, 16384];
@@ -113,8 +113,8 @@ mod rustcrypto_ed25519 {
 
 mod rustcrypto_p256 {
     use p256::ecdsa::{
-        signature::{Signer, Verifier},
         Signature, SigningKey, VerifyingKey,
+        signature::{Signer, Verifier},
     };
     use rand_core::OsRng;
 
@@ -140,7 +140,7 @@ mod rustcrypto_p256 {
 #[cfg(feature = "bench-ring")]
 mod ring_ed25519 {
     use ring::rand::SystemRandom;
-    use ring::signature::{Ed25519KeyPair, KeyPair, UnparsedPublicKey, ED25519};
+    use ring::signature::{ED25519, Ed25519KeyPair, KeyPair, UnparsedPublicKey};
 
     pub struct RingKeyPair {
         keypair: Ed25519KeyPair,
@@ -172,8 +172,8 @@ mod ring_ed25519 {
 mod ring_p256 {
     use ring::rand::SystemRandom;
     use ring::signature::{
-        EcdsaKeyPair, KeyPair, UnparsedPublicKey, ECDSA_P256_SHA256_ASN1,
-        ECDSA_P256_SHA256_ASN1_SIGNING,
+        ECDSA_P256_SHA256_ASN1, ECDSA_P256_SHA256_ASN1_SIGNING, EcdsaKeyPair, KeyPair,
+        UnparsedPublicKey,
     };
 
     pub struct RingP256KeyPair {

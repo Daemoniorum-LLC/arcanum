@@ -7,7 +7,7 @@
 
 #![allow(clippy::redundant_closure)]
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 
 // Message sizes for benchmarking (covering various use cases)
 const SIZES: &[usize] = &[64, 256, 1024, 4096, 16384, 65536];
@@ -118,7 +118,7 @@ mod rustcrypto_chacha {
 
 #[cfg(feature = "bench-ring")]
 mod ring_aes {
-    use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
+    use ring::aead::{AES_256_GCM, Aad, LessSafeKey, Nonce, UnboundKey};
     use ring::rand::{SecureRandom, SystemRandom};
 
     pub fn keygen() -> (Vec<u8>, [u8; 12]) {
@@ -152,7 +152,7 @@ mod ring_aes {
 
 #[cfg(feature = "bench-ring")]
 mod ring_chacha {
-    use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, CHACHA20_POLY1305};
+    use ring::aead::{Aad, CHACHA20_POLY1305, LessSafeKey, Nonce, UnboundKey};
     use ring::rand::{SecureRandom, SystemRandom};
 
     pub fn keygen() -> (Vec<u8>, [u8; 12]) {

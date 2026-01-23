@@ -9,7 +9,7 @@
 //! - **Equality Proof**: Prove two commitments hide the same value
 //! - **Representation Proof**: Prove knowledge of representation
 
-use crate::curve::{CompressedRistretto, RistrettoPoint, Scalar, RISTRETTO_BASEPOINT_POINT};
+use crate::curve::{CompressedRistretto, RISTRETTO_BASEPOINT_POINT, RistrettoPoint, Scalar};
 use arcanum_core::error::{Error, Result};
 use rand::RngCore;
 use sha2::{Digest, Sha512};
