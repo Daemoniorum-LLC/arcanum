@@ -1,0 +1,120 @@
+name: WASM
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'crates/arcanum-wasm/**'
+      - 'crates/arcanum-primitives/**'
+      - '.github/workflows/wasm.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'crates/arcanum-wasm/**'
+      - 'crates/arcanum-primitives/**'
+      - '.github/workflows/wasm.yml'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build WASM
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        backend: [backend-rustcrypto, backend-native]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@wasm-pack
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-wasm-${{ matrix.backend }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build WASM (${{ matrix.backend }})
+        run: |
+          wasm-pack build crates/arcanum-wasm \
+            --target web \
+            --features ${{ matrix.backend }} \
+            --no-default-features
+
+      - name: Check bundle size
+        run: |
+          SIZE=$(wc -c < crates/arcanum-wasm/pkg/arcanum_wasm_bg.wasm)
+          echo "WASM bundle size: $SIZE bytes ($(($SIZE / 1024)) KB)"
+          # Fail if bundle exceeds 500KB (arbitrary limit for now)
+          if [ $SIZE -gt 512000 ]; then
+            echo "::error::WASM bundle too large: $SIZE bytes > 500KB"
+            exit 1
+          fi
+
+  test-node:
+    name: Test WASM (Node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@wasm-pack
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-wasm-test-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run WASM tests (Node)
+        run: wasm-pack test --node crates/arcanum-wasm
+
+  test-browser:
+    name: Test WASM (Chrome)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@wasm-pack
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-wasm-test-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run WASM tests (Chrome headless)
+        run: wasm-pack test --headless --chrome crates/arcanum-wasm
