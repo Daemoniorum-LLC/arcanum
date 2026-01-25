@@ -67,7 +67,7 @@ impl AesGcm {
             )));
         }
 
-        use aes_gcm::{aead::Aead, aead::Payload, Nonce};
+        use aes_gcm::{Nonce, aead::Aead, aead::Payload};
 
         let nonce = Nonce::from_slice(nonce);
         let payload = match &aad {
@@ -111,7 +111,7 @@ impl AesGcm {
             )));
         }
 
-        use aes_gcm::{aead::Aead, aead::Payload, Nonce};
+        use aes_gcm::{Nonce, aead::Aead, aead::Payload};
 
         let nonce = Nonce::from_slice(nonce);
         let payload = match &aad {
@@ -214,7 +214,7 @@ impl ChaCha20Poly1305 {
 
         #[cfg(feature = "backend-rustcrypto")]
         {
-            use chacha20poly1305::{aead::Aead, aead::Payload, Nonce};
+            use chacha20poly1305::{Nonce, aead::Aead, aead::Payload};
 
             let nonce = Nonce::from_slice(nonce);
             let payload = match &aad {
@@ -275,7 +275,7 @@ impl ChaCha20Poly1305 {
 
         #[cfg(feature = "backend-rustcrypto")]
         {
-            use chacha20poly1305::{aead::Aead, aead::Payload, Nonce};
+            use chacha20poly1305::{Nonce, aead::Aead, aead::Payload};
 
             let nonce = Nonce::from_slice(nonce);
             let payload = match &aad {

@@ -24,7 +24,7 @@
 
 use core::arch::wasm32::*;
 
-use super::chacha20::{chacha20_block, BLOCK_SIZE, KEY_SIZE, NONCE_SIZE};
+use super::chacha20::{BLOCK_SIZE, KEY_SIZE, NONCE_SIZE, chacha20_block};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -217,10 +217,22 @@ pub fn chacha20_blocks_4x(key: &[u8; 32], counter: u32, nonce: &[u8; 12]) -> [u8
             // Block 1: offset 64, words at base_word*4
             // etc.
             let word_offset = $base_word * 4;
-            v128_store(output.as_mut_ptr().add(0 * 64 + word_offset) as *mut v128, b0);
-            v128_store(output.as_mut_ptr().add(1 * 64 + word_offset) as *mut v128, b1);
-            v128_store(output.as_mut_ptr().add(2 * 64 + word_offset) as *mut v128, b2);
-            v128_store(output.as_mut_ptr().add(3 * 64 + word_offset) as *mut v128, b3);
+            v128_store(
+                output.as_mut_ptr().add(0 * 64 + word_offset) as *mut v128,
+                b0,
+            );
+            v128_store(
+                output.as_mut_ptr().add(1 * 64 + word_offset) as *mut v128,
+                b1,
+            );
+            v128_store(
+                output.as_mut_ptr().add(2 * 64 + word_offset) as *mut v128,
+                b2,
+            );
+            v128_store(
+                output.as_mut_ptr().add(3 * 64 + word_offset) as *mut v128,
+                b3,
+            );
         }};
     }
 
@@ -525,13 +537,21 @@ mod tests {
         let len = 256;
 
         // Apply keystream to unaligned portion
-        let simd_counter = apply_keystream_auto(&key, &nonce, 0, &mut aligned[unaligned_start..unaligned_start + len]);
+        let simd_counter = apply_keystream_auto(
+            &key,
+            &nonce,
+            0,
+            &mut aligned[unaligned_start..unaligned_start + len],
+        );
 
         // Compare with scalar reference
         let mut scalar_buf = vec![0xAB; len];
         apply_keystream_scalar(&key, &nonce, 0, &mut scalar_buf);
 
-        assert_eq!(&aligned[unaligned_start..unaligned_start + len], scalar_buf.as_slice());
+        assert_eq!(
+            &aligned[unaligned_start..unaligned_start + len],
+            scalar_buf.as_slice()
+        );
         assert_eq!(simd_counter, 4); // 256 bytes = 4 blocks
     }
 
@@ -551,7 +571,12 @@ mod tests {
             let mut reference = vec![0xCD; len];
             apply_keystream_scalar(&key, &nonce, 0, &mut reference);
 
-            assert_eq!(&buffer[offset..offset + len], reference.as_slice(), "Failed at offset {}", offset);
+            assert_eq!(
+                &buffer[offset..offset + len],
+                reference.as_slice(),
+                "Failed at offset {}",
+                offset
+            );
         }
     }
 
@@ -582,7 +607,11 @@ mod tests {
             apply_keystream_auto(&key, &nonce, 0, &mut simd_output);
             apply_keystream_scalar(&key, &nonce, 0, &mut scalar_output);
 
-            assert_eq!(simd_output, scalar_output, "Partial block mismatch at size {}", size);
+            assert_eq!(
+                simd_output, scalar_output,
+                "Partial block mismatch at size {}",
+                size
+            );
         }
     }
 }

@@ -131,10 +131,7 @@ fn compress(
     }
 
     // Use WASM SIMD when targeting wasm32 with simd128
-    #[cfg(all(
-        feature = "wasm-simd",
-        target_arch = "wasm32",
-    ))]
+    #[cfg(all(feature = "wasm-simd", target_arch = "wasm32",))]
     {
         return crate::blake3_wasm_simd::compress(cv, block, counter, block_len, flags);
     }

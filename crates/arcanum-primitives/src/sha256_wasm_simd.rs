@@ -91,7 +91,10 @@ fn expand_message_schedule(block: &[u8; 64]) -> [u32; 64] {
     for i in 16..64 {
         let s0 = w[i - 15].rotate_right(7) ^ w[i - 15].rotate_right(18) ^ (w[i - 15] >> 3);
         let s1 = w[i - 2].rotate_right(17) ^ w[i - 2].rotate_right(19) ^ (w[i - 2] >> 10);
-        w[i] = w[i - 16].wrapping_add(s0).wrapping_add(w[i - 7]).wrapping_add(s1);
+        w[i] = w[i - 16]
+            .wrapping_add(s0)
+            .wrapping_add(w[i - 7])
+            .wrapping_add(s1);
     }
 
     w
@@ -292,7 +295,10 @@ mod tests {
         for i in 16..64 {
             let s0 = w[i - 15].rotate_right(7) ^ w[i - 15].rotate_right(18) ^ (w[i - 15] >> 3);
             let s1 = w[i - 2].rotate_right(17) ^ w[i - 2].rotate_right(19) ^ (w[i - 2] >> 10);
-            w[i] = w[i - 16].wrapping_add(s0).wrapping_add(w[i - 7]).wrapping_add(s1);
+            w[i] = w[i - 16]
+                .wrapping_add(s0)
+                .wrapping_add(w[i - 7])
+                .wrapping_add(s1);
         }
 
         let [mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut h] = *state;
@@ -300,7 +306,11 @@ mod tests {
         for i in 0..64 {
             let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
             let ch = (e & f) ^ ((!e) & g);
-            let temp1 = h.wrapping_add(s1).wrapping_add(ch).wrapping_add(K256[i]).wrapping_add(w[i]);
+            let temp1 = h
+                .wrapping_add(s1)
+                .wrapping_add(ch)
+                .wrapping_add(K256[i])
+                .wrapping_add(w[i]);
 
             let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
             let maj = (a & b) ^ (a & c) ^ (b & c);
@@ -493,7 +503,11 @@ mod tests {
             compress_block(&mut simd_state, &block);
             compress_block_scalar(&mut scalar_state, &block);
 
-            assert_eq!(simd_state, scalar_state, "Word boundary mismatch at pattern {}", pattern_start);
+            assert_eq!(
+                simd_state, scalar_state,
+                "Word boundary mismatch at pattern {}",
+                pattern_start
+            );
         }
     }
 
@@ -519,7 +533,7 @@ mod tests {
         // Values that test rotation edge cases
         let mut block_rotate = [0u8; 64];
         for i in (0..64).step_by(4) {
-            block_rotate[i] = 0x80;     // High bit set
+            block_rotate[i] = 0x80; // High bit set
             block_rotate[i + 1] = 0x00;
             block_rotate[i + 2] = 0x00;
             block_rotate[i + 3] = 0x01; // Low bit set
@@ -538,10 +552,22 @@ mod tests {
 
         // Use different initial states
         let mut states = [
-            [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19],
-            [0x22312194, 0xFC2BF72C, 0x9F555FA3, 0xC84C64C2, 0x2393B86B, 0x6F53B151, 0x96387719, 0x5940EABD],
-            [0xC1059ED8, 0x367CD507, 0x3070DD17, 0xF70E5939, 0xFFC00B31, 0x68581511, 0x64F98FA7, 0xBEFA4FA4],
-            [0x8C3D37C8, 0x19544DA2, 0x73E19966, 0x89DCD4D6, 0x1DFAB7AE, 0x32FF9C82, 0x679DD514, 0x582F9FCF],
+            [
+                0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab,
+                0x5be0cd19,
+            ],
+            [
+                0x22312194, 0xFC2BF72C, 0x9F555FA3, 0xC84C64C2, 0x2393B86B, 0x6F53B151, 0x96387719,
+                0x5940EABD,
+            ],
+            [
+                0xC1059ED8, 0x367CD507, 0x3070DD17, 0xF70E5939, 0xFFC00B31, 0x68581511, 0x64F98FA7,
+                0xBEFA4FA4,
+            ],
+            [
+                0x8C3D37C8, 0x19544DA2, 0x73E19966, 0x89DCD4D6, 0x1DFAB7AE, 0x32FF9C82, 0x679DD514,
+                0x582F9FCF,
+            ],
         ];
 
         let mut states_copy = states.clone();

@@ -40,14 +40,7 @@ const BLOCK_LEN: usize = 64;
 /// This performs a single G operation on 4 values using SIMD,
 /// where each v128 holds [a, b, c, d] from the state.
 #[inline(always)]
-fn g_simd(
-    row0: &mut v128,
-    row1: &mut v128,
-    row2: &mut v128,
-    row3: &mut v128,
-    mx: v128,
-    my: v128,
-) {
+fn g_simd(row0: &mut v128, row1: &mut v128, row2: &mut v128, row3: &mut v128, mx: v128, my: v128) {
     // a += b + mx
     *row0 = u32x4_add(*row0, u32x4_add(*row1, mx));
     // d = (d ^ a) >>> 16
@@ -176,7 +169,12 @@ pub fn compress(
     let mut row0 = u32x4(cv[0], cv[1], cv[2], cv[3]);
     let mut row1 = u32x4(cv[4], cv[5], cv[6], cv[7]);
     let mut row2 = u32x4(IV[0], IV[1], IV[2], IV[3]);
-    let mut row3 = u32x4(counter as u32, (counter >> 32) as u32, block_len, flags as u32);
+    let mut row3 = u32x4(
+        counter as u32,
+        (counter >> 32) as u32,
+        block_len,
+        flags as u32,
+    );
 
     // 7 rounds
     for _ in 0..7 {
@@ -367,7 +365,16 @@ pub fn compress_4x(
 
 /// G function for 4-way parallel compression.
 #[inline(always)]
-fn g_4x(s: &mut [v128; 16], a: usize, b: usize, c: usize, d: usize, m: &[[u32; 4]; 16], mx: usize, my: usize) {
+fn g_4x(
+    s: &mut [v128; 16],
+    a: usize,
+    b: usize,
+    c: usize,
+    d: usize,
+    m: &[[u32; 4]; 16],
+    mx: usize,
+    my: usize,
+) {
     let mx_vec = u32x4(m[mx][0], m[mx][1], m[mx][2], m[mx][3]);
     let my_vec = u32x4(m[my][0], m[my][1], m[my][2], m[my][3]);
 
@@ -425,9 +432,22 @@ mod tests {
         let m = words_from_le_bytes(block);
 
         let mut state = [
-            cv[0], cv[1], cv[2], cv[3], cv[4], cv[5], cv[6], cv[7],
-            IV[0], IV[1], IV[2], IV[3],
-            counter as u32, (counter >> 32) as u32, block_len, flags as u32,
+            cv[0],
+            cv[1],
+            cv[2],
+            cv[3],
+            cv[4],
+            cv[5],
+            cv[6],
+            cv[7],
+            IV[0],
+            IV[1],
+            IV[2],
+            IV[3],
+            counter as u32,
+            (counter >> 32) as u32,
+            block_len,
+            flags as u32,
         ];
 
         let mut m_sched = m;
@@ -505,15 +525,21 @@ mod tests {
             let flags = if counter == 0 { 0x01 } else { 0x00 }; // CHUNK_START on first
             let simd_result = compress(&cv, &block, counter, 64, flags);
             let scalar_result = compress_scalar(&cv, &block, counter, 64, flags);
-            assert_eq!(simd_result, scalar_result, "Mismatch at counter {}", counter);
+            assert_eq!(
+                simd_result, scalar_result,
+                "Mismatch at counter {}",
+                counter
+            );
         }
     }
 
     /// B3-S4: SIMD matches scalar for keyed hash mode
     #[test]
     fn simd_matches_scalar_keyed() {
-        let key: [u32; 8] = [0x01020304, 0x05060708, 0x090A0B0C, 0x0D0E0F10,
-                            0x11121314, 0x15161718, 0x191A1B1C, 0x1D1E1F20];
+        let key: [u32; 8] = [
+            0x01020304, 0x05060708, 0x090A0B0C, 0x0D0E0F10, 0x11121314, 0x15161718, 0x191A1B1C,
+            0x1D1E1F20,
+        ];
         let block = [0x42_u8; 64];
 
         let simd_result = compress(&key, &block, 0, 64, 0x1B); // CHUNK_START | CHUNK_END | ROOT | KEYED_HASH
@@ -529,13 +555,10 @@ mod tests {
         // We compare against our scalar which is verified against blake3 crate
         let cv = IV;
         let block: [u8; 64] = [
-            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-            0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
-            0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
-            0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
-            0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
-            0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
+            0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b,
+            0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29,
+            0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
             0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
         ];
 
@@ -577,7 +600,11 @@ mod tests {
             let block = [0xAB_u8; 64];
             let simd_result = compress(&cv, &block, 0, block_len as u32, 0x0B);
             let scalar_result = compress_scalar(&cv, &block, 0, block_len as u32, 0x0B);
-            assert_eq!(simd_result, scalar_result, "Mismatch at block_len {}", block_len);
+            assert_eq!(
+                simd_result, scalar_result,
+                "Mismatch at block_len {}",
+                block_len
+            );
         }
     }
 
@@ -590,7 +617,11 @@ mod tests {
         for counter in [0_u64, 1, 255, 256, u32::MAX as u64, u64::MAX] {
             let simd_result = compress(&cv, &block, counter, 64, 0x0B);
             let scalar_result = compress_scalar(&cv, &block, counter, 64, 0x0B);
-            assert_eq!(simd_result, scalar_result, "Mismatch at counter {}", counter);
+            assert_eq!(
+                simd_result, scalar_result,
+                "Mismatch at counter {}",
+                counter
+            );
         }
     }
 
@@ -611,7 +642,11 @@ mod tests {
             let simd_result = compress(&cv, &block, 0, 64, 0x0B);
             let scalar_result = compress_scalar(&cv, &block, 0, 64, 0x0B);
 
-            assert_eq!(simd_result, scalar_result, "Mismatch at offset pattern {}", offset);
+            assert_eq!(
+                simd_result, scalar_result,
+                "Mismatch at offset pattern {}",
+                offset
+            );
         }
     }
 
@@ -626,7 +661,11 @@ mod tests {
             let simd_result = compress(&cv, &block, 0, 64, flags);
             let scalar_result = compress_scalar(&cv, &block, 0, 64, flags);
 
-            assert_eq!(simd_result, scalar_result, "Mismatch at flags 0x{:02X}", flags);
+            assert_eq!(
+                simd_result, scalar_result,
+                "Mismatch at flags 0x{:02X}",
+                flags
+            );
         }
     }
 
@@ -659,7 +698,11 @@ mod tests {
             let simd_result = compress(&cv, &block, 0, block_len as u32, 0x0B);
             let scalar_result = compress_scalar(&cv, &block, 0, block_len as u32, 0x0B);
 
-            assert_eq!(simd_result, scalar_result, "Mismatch at block_len {}", block_len);
+            assert_eq!(
+                simd_result, scalar_result,
+                "Mismatch at block_len {}",
+                block_len
+            );
         }
     }
 }

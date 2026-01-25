@@ -10,30 +10,86 @@
 /// SHA-256 canonical test vectors
 /// Format: (name, input_description, expected_hash_hex)
 pub const SHA256_VECTORS: &[(&str, &str, &str)] = &[
-    ("empty", "", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
-    ("hello", "hello", "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"),
-    ("64_sequential", "0..64", "fdeab9acf3710362bd2658cdc9a29e8f9c757fcf9811603a8c447cd1d9151108"),
-    ("256_pattern", "(i*0x42+0x24)&0xff for i in 0..256", "ffd75fd96f97049ac629708ffced682458d168ec089dd7dc6fcf768ebaed3cae"),
-    ("1024_pattern", "(i*0x17+0x31)&0xff for i in 0..1024", "1177442d23333da6a3ec810c68ba8b6d8fbdc8244ba7a672598a86271e3771a0"),
+    (
+        "empty",
+        "",
+        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ),
+    (
+        "hello",
+        "hello",
+        "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+    ),
+    (
+        "64_sequential",
+        "0..64",
+        "fdeab9acf3710362bd2658cdc9a29e8f9c757fcf9811603a8c447cd1d9151108",
+    ),
+    (
+        "256_pattern",
+        "(i*0x42+0x24)&0xff for i in 0..256",
+        "ffd75fd96f97049ac629708ffced682458d168ec089dd7dc6fcf768ebaed3cae",
+    ),
+    (
+        "1024_pattern",
+        "(i*0x17+0x31)&0xff for i in 0..1024",
+        "1177442d23333da6a3ec810c68ba8b6d8fbdc8244ba7a672598a86271e3771a0",
+    ),
 ];
 
 /// BLAKE3 canonical test vectors
 pub const BLAKE3_VECTORS: &[(&str, &str, &str)] = &[
-    ("empty", "", "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"),
-    ("hello", "hello", "ea8f163db38682925e4491c5e58d4bb3506ef8c14eb78a86e908c5624a67200f"),
-    ("64_sequential", "0..64", "4eed7141ea4a5cd4b788606bd23f46e212af9cacebacdc7d1f4c6dc7f2511b98"),
-    ("256_pattern", "(i*0x42+0x24)&0xff for i in 0..256", "4143d1e27a6c35fac48f4d32ab64b7e3ee02f3ead0f904a6b684d216530bd9d9"),
-    ("1024_pattern", "(i*0x17+0x31)&0xff for i in 0..1024", "f92654c4e459e9bc0bd22b96403d9014e373739636a36107e68b6e4f68f00aa0"),
+    (
+        "empty",
+        "",
+        "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262",
+    ),
+    (
+        "hello",
+        "hello",
+        "ea8f163db38682925e4491c5e58d4bb3506ef8c14eb78a86e908c5624a67200f",
+    ),
+    (
+        "64_sequential",
+        "0..64",
+        "4eed7141ea4a5cd4b788606bd23f46e212af9cacebacdc7d1f4c6dc7f2511b98",
+    ),
+    (
+        "256_pattern",
+        "(i*0x42+0x24)&0xff for i in 0..256",
+        "4143d1e27a6c35fac48f4d32ab64b7e3ee02f3ead0f904a6b684d216530bd9d9",
+    ),
+    (
+        "1024_pattern",
+        "(i*0x17+0x31)&0xff for i in 0..1024",
+        "f92654c4e459e9bc0bd22b96403d9014e373739636a36107e68b6e4f68f00aa0",
+    ),
 ];
 
 /// ChaCha20 canonical test vectors
 /// Key: [0x42; 32], Nonce: [0x24; 12], Counter: 0
 /// Format: (size, first_32_bytes_hex, last_32_bytes_hex)
 pub const CHACHA20_VECTORS: &[(usize, &str, &str)] = &[
-    (64, "e405626e4f1236b3670ee428332ea20e325a20ad55a1b53de7d5cf673d5694c2", "84d2afe53b26ffb2b0b3d872309d007d4493c6be5f949f4aed10217177536196"),
-    (256, "e405626e4f1236b3670ee428332ea20e325a20ad55a1b53de7d5cf673d5694c2", "7b4bf3c7de7a252a8777d4371a9bb13706de492aa6cc000fe1161e9038493629"),
-    (512, "e405626e4f1236b3670ee428332ea20e325a20ad55a1b53de7d5cf673d5694c2", "5f6835fdd81331fa556a20147d81d00ee9f4fb89c205ff9a12a51c6890086e1b"),
-    (1024, "e405626e4f1236b3670ee428332ea20e325a20ad55a1b53de7d5cf673d5694c2", "b0496cb2fbab504d30741db42d84024becf35ef3e60127f9dc0d4aef4b8609f5"),
+    (
+        64,
+        "e405626e4f1236b3670ee428332ea20e325a20ad55a1b53de7d5cf673d5694c2",
+        "84d2afe53b26ffb2b0b3d872309d007d4493c6be5f949f4aed10217177536196",
+    ),
+    (
+        256,
+        "e405626e4f1236b3670ee428332ea20e325a20ad55a1b53de7d5cf673d5694c2",
+        "7b4bf3c7de7a252a8777d4371a9bb13706de492aa6cc000fe1161e9038493629",
+    ),
+    (
+        512,
+        "e405626e4f1236b3670ee428332ea20e325a20ad55a1b53de7d5cf673d5694c2",
+        "5f6835fdd81331fa556a20147d81d00ee9f4fb89c205ff9a12a51c6890086e1b",
+    ),
+    (
+        1024,
+        "e405626e4f1236b3670ee428332ea20e325a20ad55a1b53de7d5cf673d5694c2",
+        "b0496cb2fbab504d30741db42d84024becf35ef3e60127f9dc0d4aef4b8609f5",
+    ),
 ];
 
 /// Generate test input based on pattern name
@@ -43,7 +99,9 @@ pub fn generate_input(name: &str) -> Vec<u8> {
         "hello" => b"hello".to_vec(),
         "64_sequential" => (0..64).collect(),
         "256_pattern" => (0..256).map(|i| ((i * 0x42 + 0x24) & 0xff) as u8).collect(),
-        "1024_pattern" => (0..1024).map(|i| ((i * 0x17 + 0x31) & 0xff) as u8).collect(),
+        "1024_pattern" => (0..1024)
+            .map(|i| ((i * 0x17 + 0x31) & 0xff) as u8)
+            .collect(),
         _ => panic!("Unknown pattern: {}", name),
     }
 }
@@ -157,20 +215,50 @@ mod tests {
     fn xp_vectors_are_valid() {
         // Verify all hex strings are valid
         for (name, _, hex) in SHA256_VECTORS {
-            assert_eq!(hex.len(), 64, "SHA-256 vector '{}' should be 64 hex chars", name);
+            assert_eq!(
+                hex.len(),
+                64,
+                "SHA-256 vector '{}' should be 64 hex chars",
+                name
+            );
             let bytes = hex_to_bytes(hex);
-            assert_eq!(bytes.len(), 32, "SHA-256 vector '{}' should be 32 bytes", name);
+            assert_eq!(
+                bytes.len(),
+                32,
+                "SHA-256 vector '{}' should be 32 bytes",
+                name
+            );
         }
 
         for (name, _, hex) in BLAKE3_VECTORS {
-            assert_eq!(hex.len(), 64, "BLAKE3 vector '{}' should be 64 hex chars", name);
+            assert_eq!(
+                hex.len(),
+                64,
+                "BLAKE3 vector '{}' should be 64 hex chars",
+                name
+            );
             let bytes = hex_to_bytes(hex);
-            assert_eq!(bytes.len(), 32, "BLAKE3 vector '{}' should be 32 bytes", name);
+            assert_eq!(
+                bytes.len(),
+                32,
+                "BLAKE3 vector '{}' should be 32 bytes",
+                name
+            );
         }
 
         for (size, first, last) in CHACHA20_VECTORS {
-            assert_eq!(first.len(), 64, "ChaCha20 {} first should be 64 hex chars", size);
-            assert_eq!(last.len(), 64, "ChaCha20 {} last should be 64 hex chars", size);
+            assert_eq!(
+                first.len(),
+                64,
+                "ChaCha20 {} first should be 64 hex chars",
+                size
+            );
+            assert_eq!(
+                last.len(),
+                64,
+                "ChaCha20 {} last should be 64 hex chars",
+                size
+            );
         }
     }
 }

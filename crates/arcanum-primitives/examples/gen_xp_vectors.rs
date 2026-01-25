@@ -20,8 +20,16 @@ fn main() {
         ("empty", vec![]),
         ("hello", b"hello".to_vec()),
         ("64_sequential", (0..64).collect()),
-        ("256_pattern", (0..256).map(|i| ((i * 0x42 + 0x24) & 0xff) as u8).collect()),
-        ("1024_pattern", (0..1024).map(|i| ((i * 0x17 + 0x31) & 0xff) as u8).collect()),
+        (
+            "256_pattern",
+            (0..256).map(|i| ((i * 0x42 + 0x24) & 0xff) as u8).collect(),
+        ),
+        (
+            "1024_pattern",
+            (0..1024)
+                .map(|i| ((i * 0x17 + 0x31) & 0xff) as u8)
+                .collect(),
+        ),
     ];
 
     // SHA-256 vectors
@@ -54,7 +62,7 @@ fn main() {
         println!("// ChaCha20 {} bytes - first 32:", size);
         println!("\"{}\"", to_hex(&data[..32]));
         println!("// last 32:");
-        println!("\"{}\"", to_hex(&data[data.len()-32..]));
+        println!("\"{}\"", to_hex(&data[data.len() - 32..]));
         println!();
     }
 }

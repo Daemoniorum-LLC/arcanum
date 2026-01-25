@@ -29,10 +29,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 #[cfg(feature = "simd")]
 use crate::chacha20_simd;
 
-#[cfg(all(
-    feature = "wasm-simd",
-    target_arch = "wasm32",
-))]
+#[cfg(all(feature = "wasm-simd", target_arch = "wasm32",))]
 use crate::chacha20_wasm_simd;
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -272,14 +269,15 @@ impl ChaCha20 {
         }
 
         // Use WASM SIMD path when available (compile-time feature)
-        #[cfg(all(
-            feature = "wasm-simd",
-            target_arch = "wasm32",
-        ))]
+        #[cfg(all(feature = "wasm-simd", target_arch = "wasm32",))]
         {
             if data.len() >= 256 {
-                self.counter =
-                    chacha20_wasm_simd::apply_keystream_auto(&self.key, &self.nonce, self.counter, data);
+                self.counter = chacha20_wasm_simd::apply_keystream_auto(
+                    &self.key,
+                    &self.nonce,
+                    self.counter,
+                    data,
+                );
                 self.buffer_pos = BLOCK_SIZE; // Invalidate buffer
                 return;
             }
