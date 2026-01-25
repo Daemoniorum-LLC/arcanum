@@ -172,6 +172,10 @@ pub mod fused;
 #[cfg(feature = "sha2")]
 pub mod batch;
 
+// Cross-platform test vectors for XP-1/XP-2 validation
+#[cfg(test)]
+pub mod xp_test_vectors;
+
 // Re-exports
 pub use backend::{Backend, NativeBackend};
 pub use ct::{CtBool, CtEq, CtSelect};

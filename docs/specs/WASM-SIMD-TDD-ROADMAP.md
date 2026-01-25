@@ -193,7 +193,7 @@ test("simd_build_loads_in_browser", async () => {
 
 ### Phase 4: Integration & Polish (Week 4)
 
-1. [ ] Write XP-1 and XP-2 (cross-platform)
+1. [x] Write XP-1 and XP-2 (cross-platform) - xp_test_vectors.rs + test-simd.mjs
 2. [x] Write EDGE-1 through EDGE-4
 3. [x] Write BUILD-1 through BUILD-3 (CI wasm.yml)
 4. [x] Write JS-SIMD-1 through JS-SIMD-3 (test-simd.mjs)
