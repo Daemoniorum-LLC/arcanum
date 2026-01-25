@@ -593,4 +593,73 @@ mod tests {
             assert_eq!(simd_result, scalar_result, "Mismatch at counter {}", counter);
         }
     }
+
+    // ==================== EDGE CASE TESTS ====================
+
+    /// EDGE-1: Test with blocks that have various byte patterns
+    #[test]
+    fn test_handles_unaligned_patterns() {
+        let cv = IV;
+
+        // Test blocks with non-aligned u32 patterns
+        for offset in [1, 2, 3] {
+            let mut block = [0u8; 64];
+            for i in 0..64 {
+                block[i] = ((i + offset) % 256) as u8;
+            }
+
+            let simd_result = compress(&cv, &block, 0, 64, 0x0B);
+            let scalar_result = compress_scalar(&cv, &block, 0, 64, 0x0B);
+
+            assert_eq!(simd_result, scalar_result, "Mismatch at offset pattern {}", offset);
+        }
+    }
+
+    /// EDGE-2: Test all possible flag combinations
+    #[test]
+    fn test_handles_all_flags() {
+        let cv = IV;
+        let block = [0x42_u8; 64];
+
+        // Test all meaningful flag combinations
+        for flags in [0x00, 0x01, 0x02, 0x03, 0x04, 0x08, 0x0B, 0x10, 0x1B] {
+            let simd_result = compress(&cv, &block, 0, 64, flags);
+            let scalar_result = compress_scalar(&cv, &block, 0, 64, flags);
+
+            assert_eq!(simd_result, scalar_result, "Mismatch at flags 0x{:02X}", flags);
+        }
+    }
+
+    /// EDGE-3: Test zero length block handling
+    #[test]
+    fn test_handles_zero_length_block() {
+        let cv = IV;
+        let block = [0u8; 64]; // Zero-filled block
+
+        // Even with block_len=0, compression should work
+        let simd_result = compress(&cv, &block, 0, 0, 0x0B);
+        let scalar_result = compress_scalar(&cv, &block, 0, 0, 0x0B);
+
+        assert_eq!(simd_result, scalar_result);
+    }
+
+    /// EDGE-4: Test partial block lengths
+    #[test]
+    fn test_handles_partial_blocks() {
+        let cv = IV;
+
+        // Test all possible partial block lengths
+        for block_len in (0..=64).step_by(7) {
+            let mut block = [0xCD_u8; 64];
+            // Fill only the "valid" portion with pattern
+            for i in 0..block_len {
+                block[i] = i as u8;
+            }
+
+            let simd_result = compress(&cv, &block, 0, block_len as u32, 0x0B);
+            let scalar_result = compress_scalar(&cv, &block, 0, block_len as u32, 0x0B);
+
+            assert_eq!(simd_result, scalar_result, "Mismatch at block_len {}", block_len);
+        }
+    }
 }

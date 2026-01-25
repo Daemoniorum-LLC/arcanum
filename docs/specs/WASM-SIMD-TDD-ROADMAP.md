@@ -166,39 +166,39 @@ test("simd_build_loads_in_browser", async () => {
 
 ### Phase 1: ChaCha20 SIMD (Week 1)
 
-1. [ ] Create `chacha20_wasm_simd.rs` skeleton
-2. [ ] Write C20-S6 (RFC KAT) - this drives implementation
-3. [ ] Implement quarter round SIMD
-4. [ ] Write C20-S1 through C20-S5
-5. [ ] Write PERF-C20-1 and PERF-C20-2
-6. [ ] Verify performance targets met
+1. [x] Create `chacha20_wasm_simd.rs` skeleton
+2. [x] Write C20-S6 (RFC KAT) - this drives implementation
+3. [x] Implement quarter round SIMD
+4. [x] Write C20-S1 through C20-S5
+5. [x] Write PERF-C20-1 and PERF-C20-2
+6. [x] Verify performance targets met
 
 ### Phase 2: BLAKE3 SIMD (Week 2)
 
-1. [ ] Create `blake3_wasm_simd.rs` skeleton
-2. [ ] Write B3-S5 (reference vectors)
-3. [ ] Implement compression SIMD
-4. [ ] Write B3-S1 through B3-S4
-5. [ ] Write PERF-B3-1
-6. [ ] Verify performance targets met
+1. [x] Create `blake3_wasm_simd.rs` skeleton
+2. [x] Write B3-S5 (reference vectors)
+3. [x] Implement compression SIMD
+4. [x] Write B3-S1 through B3-S4
+5. [x] Write PERF-B3-1
+6. [x] Verify performance targets met
 
 ### Phase 3: SHA-256 SIMD (Week 3)
 
-1. [ ] Create `sha256_wasm_simd.rs` skeleton
-2. [ ] Write SHA-S4 (NIST vectors)
-3. [ ] Implement message schedule SIMD
-4. [ ] Write SHA-S1 through SHA-S3
-5. [ ] Write PERF-SHA-1
-6. [ ] Verify performance targets met
+1. [x] Create `sha256_wasm_simd.rs` skeleton
+2. [x] Write SHA-S4 (NIST vectors)
+3. [x] Implement message schedule SIMD
+4. [x] Write SHA-S1 through SHA-S3
+5. [x] Write PERF-SHA-1
+6. [x] Verify performance targets met
 
 ### Phase 4: Integration & Polish (Week 4)
 
 1. [ ] Write XP-1 and XP-2 (cross-platform)
-2. [ ] Write EDGE-1 through EDGE-4
-3. [ ] Write BUILD-1 through BUILD-3
-4. [ ] Write JS-SIMD-1 through JS-SIMD-3
-5. [ ] Update CI to build both SIMD and scalar
-6. [ ] Document feature detection for consumers
+2. [x] Write EDGE-1 through EDGE-4
+3. [x] Write BUILD-1 through BUILD-3 (CI wasm.yml)
+4. [x] Write JS-SIMD-1 through JS-SIMD-3 (test-simd.mjs)
+5. [x] Update CI to build both SIMD and scalar
+6. [x] Document feature detection for consumers
 
 ## Test File Structure
 

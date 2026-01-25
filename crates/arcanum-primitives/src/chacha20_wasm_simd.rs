@@ -510,4 +510,79 @@ mod tests {
         // Should recover original
         assert_eq!(data, original);
     }
+
+    // ==================== EDGE CASE TESTS ====================
+
+    /// EDGE-1: Test unaligned input buffer
+    #[test]
+    fn test_handles_unaligned_input() {
+        let key = [0x42u8; 32];
+        let nonce = [0x24u8; 12];
+
+        // Create buffer with offset to ensure unaligned access
+        let mut aligned = vec![0xAB; 300];
+        let unaligned_start = 3; // Start at offset 3 (not 16-byte aligned)
+        let len = 256;
+
+        // Apply keystream to unaligned portion
+        let simd_counter = apply_keystream_auto(&key, &nonce, 0, &mut aligned[unaligned_start..unaligned_start + len]);
+
+        // Compare with scalar reference
+        let mut scalar_buf = vec![0xAB; len];
+        apply_keystream_scalar(&key, &nonce, 0, &mut scalar_buf);
+
+        assert_eq!(&aligned[unaligned_start..unaligned_start + len], scalar_buf.as_slice());
+        assert_eq!(simd_counter, 4); // 256 bytes = 4 blocks
+    }
+
+    /// EDGE-2: Test unaligned output buffer (same as input for keystream)
+    #[test]
+    fn test_handles_unaligned_output() {
+        let key = [0x42u8; 32];
+        let nonce = [0x24u8; 12];
+
+        // Test various unaligned offsets
+        for offset in [1, 3, 7, 13, 15] {
+            let mut buffer = vec![0xCD; 512 + offset];
+            let len = 256;
+
+            apply_keystream_auto(&key, &nonce, 0, &mut buffer[offset..offset + len]);
+
+            let mut reference = vec![0xCD; len];
+            apply_keystream_scalar(&key, &nonce, 0, &mut reference);
+
+            assert_eq!(&buffer[offset..offset + len], reference.as_slice(), "Failed at offset {}", offset);
+        }
+    }
+
+    /// EDGE-3: Test zero length input
+    #[test]
+    fn test_handles_zero_length() {
+        let key = [0x42u8; 32];
+        let nonce = [0x24u8; 12];
+
+        let mut empty: [u8; 0] = [];
+        let counter = apply_keystream_auto(&key, &nonce, 5, &mut empty);
+
+        // Counter should remain unchanged for empty input
+        assert_eq!(counter, 5);
+    }
+
+    /// EDGE-4: Test partial final block handling
+    #[test]
+    fn test_handles_partial_final_block() {
+        let key = [0x42u8; 32];
+        let nonce = [0x24u8; 12];
+
+        // Test sizes that don't align to 64-byte or 256-byte boundaries
+        for size in [1, 17, 63, 65, 127, 129, 255, 257, 300, 511] {
+            let mut simd_output = vec![0xEF; size];
+            let mut scalar_output = simd_output.clone();
+
+            apply_keystream_auto(&key, &nonce, 0, &mut simd_output);
+            apply_keystream_scalar(&key, &nonce, 0, &mut scalar_output);
+
+            assert_eq!(simd_output, scalar_output, "Partial block mismatch at size {}", size);
+        }
+    }
 }

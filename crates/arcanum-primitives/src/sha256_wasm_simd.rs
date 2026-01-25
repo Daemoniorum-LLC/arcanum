@@ -451,4 +451,106 @@ mod tests {
         compress_block_scalar(&mut scalar_state, &block_alt);
         assert_eq!(simd_state, scalar_state, "Alternating pattern mismatch");
     }
+
+    // ==================== EDGE CASE TESTS ====================
+
+    /// EDGE-1: Test unaligned byte patterns in message schedule
+    #[test]
+    fn test_handles_unaligned_patterns() {
+        // Test blocks with various unaligned patterns
+        for offset in [1, 2, 3, 5, 7] {
+            let mut block = [0u8; 64];
+            for i in 0..64 {
+                block[i] = ((i + offset) % 256) as u8;
+            }
+
+            let mut simd_state = H256_INIT;
+            let mut scalar_state = H256_INIT;
+
+            compress_block(&mut simd_state, &block);
+            compress_block_scalar(&mut scalar_state, &block);
+
+            assert_eq!(simd_state, scalar_state, "Mismatch at offset {}", offset);
+        }
+    }
+
+    /// EDGE-2: Test with blocks that would cause word boundary issues
+    #[test]
+    fn test_handles_word_boundaries() {
+        // Create blocks that have interesting patterns at u32 word boundaries
+        for pattern_start in [0, 1, 2, 3] {
+            let mut block = [0u8; 64];
+            for word_idx in 0..16 {
+                let base = (word_idx * 4) as usize;
+                for byte_idx in 0..4 {
+                    block[base + byte_idx] = ((word_idx + pattern_start + byte_idx) % 256) as u8;
+                }
+            }
+
+            let mut simd_state = H256_INIT;
+            let mut scalar_state = H256_INIT;
+
+            compress_block(&mut simd_state, &block);
+            compress_block_scalar(&mut scalar_state, &block);
+
+            assert_eq!(simd_state, scalar_state, "Word boundary mismatch at pattern {}", pattern_start);
+        }
+    }
+
+    /// EDGE-3: Test with extreme values
+    #[test]
+    fn test_handles_extreme_values() {
+        // Maximum u32 values in each word position
+        let mut block_max = [0xFFu8; 64];
+        let mut simd_state = H256_INIT;
+        let mut scalar_state = H256_INIT;
+        compress_block(&mut simd_state, &block_max);
+        compress_block_scalar(&mut scalar_state, &block_max);
+        assert_eq!(simd_state, scalar_state, "Max values mismatch");
+
+        // Minimum values (zeros)
+        let block_min = [0u8; 64];
+        let mut simd_state = H256_INIT;
+        let mut scalar_state = H256_INIT;
+        compress_block(&mut simd_state, &block_min);
+        compress_block_scalar(&mut scalar_state, &block_min);
+        assert_eq!(simd_state, scalar_state, "Min values mismatch");
+
+        // Values that test rotation edge cases
+        let mut block_rotate = [0u8; 64];
+        for i in (0..64).step_by(4) {
+            block_rotate[i] = 0x80;     // High bit set
+            block_rotate[i + 1] = 0x00;
+            block_rotate[i + 2] = 0x00;
+            block_rotate[i + 3] = 0x01; // Low bit set
+        }
+        let mut simd_state = H256_INIT;
+        let mut scalar_state = H256_INIT;
+        compress_block(&mut simd_state, &block_rotate);
+        compress_block_scalar(&mut scalar_state, &block_rotate);
+        assert_eq!(simd_state, scalar_state, "Rotation edge case mismatch");
+    }
+
+    /// EDGE-4: Test 4-way parallel with different initial states
+    #[test]
+    fn test_handles_varied_states() {
+        let blocks = [[0xABu8; 64]; 4];
+
+        // Use different initial states
+        let mut states = [
+            [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19],
+            [0x22312194, 0xFC2BF72C, 0x9F555FA3, 0xC84C64C2, 0x2393B86B, 0x6F53B151, 0x96387719, 0x5940EABD],
+            [0xC1059ED8, 0x367CD507, 0x3070DD17, 0xF70E5939, 0xFFC00B31, 0x68581511, 0x64F98FA7, 0xBEFA4FA4],
+            [0x8C3D37C8, 0x19544DA2, 0x73E19966, 0x89DCD4D6, 0x1DFAB7AE, 0x32FF9C82, 0x679DD514, 0x582F9FCF],
+        ];
+
+        let mut states_copy = states.clone();
+
+        compress_blocks_4x(&mut states, &blocks);
+
+        for i in 0..4 {
+            compress_block_scalar(&mut states_copy[i], &blocks[i]);
+            assert_eq!(states[i], states_copy[i], "Varied state mismatch at {}", i);
+        }
+    }
 }

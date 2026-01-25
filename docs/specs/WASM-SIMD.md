@@ -1,7 +1,8 @@
 # WASM SIMD Acceleration Specification
 
-**Status:** Draft
+**Status:** Implemented (Phases 1-3 Complete)
 **Created:** 2026-01-24
+**Updated:** 2026-01-24
 **Author:** Claude (Daemoniorum Conclave)
 **Methodology:** Spec-Driven Development (SDD)
 
@@ -163,6 +164,36 @@ Relaxed SIMD adds:
 - Fused multiply-add operations
 
 Browser support is still limited (Firefox 2025, Safari behind flag).
+
+## 3.5 Implementation Status
+
+| Phase | Algorithm | Status | Files |
+|-------|-----------|--------|-------|
+| 1 | ChaCha20 | Complete | `chacha20_wasm_simd.rs` |
+| 2 | BLAKE3 | Complete | `blake3_wasm_simd.rs` |
+| 3 | SHA-256 | Complete | `sha256_wasm_simd.rs` |
+| 4 | Relaxed SIMD | Future | - |
+
+### Implemented Features
+
+**ChaCha20 WASM SIMD** (`crates/arcanum-primitives/src/chacha20_wasm_simd.rs`):
+- 4-way parallel block generation using v128 vectors
+- Quarter round SIMD with u32x4 operations
+- Automatic fallback to scalar for inputs < 256 bytes
+- 10 correctness tests + 4 edge case tests
+
+**BLAKE3 WASM SIMD** (`crates/arcanum-primitives/src/blake3_wasm_simd.rs`):
+- Row-oriented state layout with v128 vectors
+- SIMD G mixing function with XOR/rotate operations
+- Diagonalize/undiagonalize using i32x4_shuffle
+- 4-way parallel compression for batch hashing
+- 8 correctness tests + 4 edge case tests
+
+**SHA-256 WASM SIMD** (`crates/arcanum-primitives/src/sha256_wasm_simd.rs`):
+- SIMD sigma0/sigma1 for message schedule expansion
+- 4-way parallel compression function
+- Efficient v128 message word loading
+- 6 correctness tests + 4 edge case tests
 
 ## 4. Build Configuration
 
