@@ -36,15 +36,8 @@ backend-native = [
 # SIMD-accelerated native backend for WASM
 # Build with: RUSTFLAGS="-C target-feature=+simd128" wasm-pack build --features backend-native-simd
 backend-native-simd = [
-    "arcanum-primitives",
-    "arcanum-primitives/alloc",
-    "arcanum-primitives/sha2",
-    "arcanum-primitives/blake3",
-    "arcanum-primitives/chacha20poly1305",
-    "arcanum-primitives/wasm-simd",
-    "dep:sha2",     # Needed for HKDF
-    "dep:sha3",     # Native backend doesn't have SHA-3
-    "dep:aes-gcm",  # Native backend doesn't have AES-GCM
+    "backend-native",                      # Includes all backend-native deps
+    "arcanum-primitives/wasm-simd",        # Add WASM SIMD acceleration
 ]
 backend-rustcrypto = [
     "dep:sha2",

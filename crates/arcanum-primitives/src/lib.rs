@@ -85,12 +85,12 @@ pub mod blake3;
 pub mod blake3_simd;
 
 // Turbo BLAKE3 with novel optimizations
-#[cfg(all(feature = "blake3", feature = "simd"))]
+#[cfg(all(feature = "blake3", feature = "simd", target_arch = "x86_64"))]
 #[allow(unsafe_code)]
 pub mod blake3_turbo;
 
 // Hyper BLAKE3 with multi-threading
-#[cfg(all(feature = "blake3", feature = "simd"))]
+#[cfg(all(feature = "blake3", feature = "simd", target_arch = "x86_64"))]
 #[allow(unsafe_code)]
 pub mod blake3_hyper;
 

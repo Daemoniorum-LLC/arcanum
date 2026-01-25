@@ -249,12 +249,56 @@ const wasmPath = simdSupported
 
 ## 5. Performance Targets
 
+### 5.1 Original Targets
+
 | Algorithm | Current (scalar) | Target (SIMD) | vs RustCrypto |
 |-----------|-----------------|---------------|---------------|
 | ChaCha20 (1KB) | 125K ops/s | 300K ops/s | +100% (exceed) |
 | ChaCha20 (16KB) | 9.3K ops/s | 25K ops/s | +100% (exceed) |
 | BLAKE3 (16KB) | 43.9K ops/s | 80K ops/s | +44% (exceed) |
 | SHA-256 (16KB) | 17.8K ops/s | 30K ops/s | +9% (match) |
+
+### 5.2 Actual Results (Node.js 20+)
+
+Benchmarks run with `.cargo/config.toml` setting `rustflags = ["-C", "target-feature=+simd128"]`
+for wasm32 target. Node.js v22.12.0.
+
+**ChaCha20-Poly1305 (includes Poly1305 MAC overhead):**
+
+| Size | Scalar | SIMD | Speedup |
+|------|--------|------|---------|
+| 64B | 797K ops/s | 830K ops/s | 1.04x |
+| 256B | 399K ops/s | 481K ops/s | 1.21x |
+| 1KB | 134K ops/s | 169K ops/s | 1.26x |
+| 4KB | 37K ops/s | 48K ops/s | 1.29x |
+| 16KB | 9.3K ops/s | 12K ops/s | 1.30x |
+
+**BLAKE3:**
+
+| Size | Scalar | SIMD | Speedup |
+|------|--------|------|---------|
+| 64B | 2862K ops/s | 2928K ops/s | 1.02x |
+| 256B | 1652K ops/s | 1797K ops/s | 1.09x |
+| 1KB | 626K ops/s | 738K ops/s | 1.18x |
+| 4KB | 168K ops/s | 210K ops/s | 1.25x |
+| 16KB | 44K ops/s | 54K ops/s | 1.24x |
+
+**SHA-256:** Minimal improvement (~1.0x) - integration needs review.
+
+### 5.3 Analysis
+
+Average speedup for SIMD-eligible sizes (256B+): **1.25x**
+
+The 1.5x target was not met. Contributing factors:
+
+1. **WASM SIMD width**: 128-bit vectors vs native AVX2 (256-bit) or AVX-512 (512-bit)
+2. **WASM overhead**: Memory access patterns and JS boundary crossing
+3. **Node.js WASM JIT**: May not be as optimized for SIMD as native code
+4. **Poly1305**: Not SIMD-accelerated, adds fixed overhead to ChaCha20-Poly1305
+5. **SHA-256**: SIMD integration may not be triggering correctly
+
+Despite not meeting the 1.5x target, the implementation provides measurable improvement
+(1.25x average) with no regressions for small messages.
 
 ## 6. Testing Requirements
 

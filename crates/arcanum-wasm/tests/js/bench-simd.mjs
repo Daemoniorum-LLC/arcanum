@@ -97,9 +97,36 @@ async function runChaCha20Benchmarks(wasm, label) {
   return results;
 }
 
+async function runHashBenchmarks(wasm, label) {
+  const results = {};
+
+  // Test various sizes
+  for (const size of [64, 256, 1024, 4096, 16384]) {
+    const data = crypto.randomBytes(size);
+
+    // SHA-256
+    const sha256Result = await benchmark(
+      `SHA-256 ${size}B`,
+      () => wasm.sha256(data),
+      { bytes: size }
+    );
+    results[`sha256_${size}B`] = sha256Result;
+
+    // BLAKE3
+    const blake3Result = await benchmark(
+      `BLAKE3 ${size}B`,
+      () => wasm.blake3(data),
+      { bytes: size }
+    );
+    results[`blake3_${size}B`] = blake3Result;
+  }
+
+  return results;
+}
+
 async function main() {
   console.log("\n" + "=".repeat(80));
-  console.log("  WASM SIMD BENCHMARK: Scalar vs SIMD ChaCha20-Poly1305");
+  console.log("  WASM SIMD BENCHMARK: Scalar vs SIMD");
   console.log("=".repeat(80) + "\n");
 
   if (!scalarWasm && !simdWasm) {
@@ -116,15 +143,19 @@ async function main() {
 
   let scalarResults = null;
   let simdResults = null;
+  let scalarHashResults = null;
+  let simdHashResults = null;
 
   if (scalarWasm) {
     console.log("Running scalar benchmarks...");
     scalarResults = await runChaCha20Benchmarks(scalarWasm, "scalar");
+    scalarHashResults = await runHashBenchmarks(scalarWasm, "scalar");
   }
 
   if (simdWasm) {
     console.log("Running SIMD benchmarks...");
     simdResults = await runChaCha20Benchmarks(simdWasm, "simd");
+    simdHashResults = await runHashBenchmarks(simdWasm, "simd");
   }
 
   // Print results
@@ -189,6 +220,46 @@ async function main() {
       console.log(line);
     }
     console.log("");
+  }
+
+  // Hash benchmarks
+  if (scalarHashResults || simdHashResults) {
+    console.log("\n" + "=".repeat(80));
+    console.log("  HASH BENCHMARKS");
+    console.log("=".repeat(80) + "\n");
+
+    const hashHeader = "  Test".padEnd(30) +
+      (scalarHashResults ? "Scalar".padStart(15) : "") +
+      (simdHashResults ? "SIMD".padStart(15) : "") +
+      (scalarHashResults && simdHashResults ? "Speedup".padStart(12) : "");
+
+    console.log(hashHeader);
+    console.log("  " + "-".repeat(hashHeader.length - 2));
+
+    for (const algo of ["sha256", "blake3"]) {
+      for (const size of [64, 256, 1024, 4096, 16384]) {
+        const key = `${algo}_${size}B`;
+        const scalar = scalarHashResults?.[key];
+        const simd = simdHashResults?.[key];
+
+        let line = `  ${algo.toUpperCase()} ${size}B`.padEnd(30);
+
+        if (scalar) {
+          line += `${(scalar.opsPerSec / 1000).toFixed(1)}K`.padStart(15);
+        }
+        if (simd) {
+          line += `${(simd.opsPerSec / 1000).toFixed(1)}K`.padStart(15);
+        }
+        if (scalar && simd) {
+          const speedup = simd.opsPerSec / scalar.opsPerSec;
+          const indicator = speedup >= 1.0 ? "✓" : "✗";
+          line += `${indicator} ${speedup.toFixed(2)}x`.padStart(12);
+        }
+
+        console.log(line);
+      }
+      console.log("");
+    }
   }
 
   // Summary
