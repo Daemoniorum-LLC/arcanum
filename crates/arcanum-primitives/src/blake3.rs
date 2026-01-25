@@ -134,7 +134,6 @@ fn compress(
     #[cfg(all(
         feature = "wasm-simd",
         target_arch = "wasm32",
-        target_feature = "simd128"
     ))]
     {
         return crate::blake3_wasm_simd::compress(cv, block, counter, block_len, flags);
@@ -142,7 +141,7 @@ fn compress(
 
     #[cfg(not(any(
         all(feature = "simd", feature = "std", not(target_arch = "wasm32")),
-        all(feature = "wasm-simd", target_arch = "wasm32", target_feature = "simd128")
+        all(feature = "wasm-simd", target_arch = "wasm32")
     )))]
     compress_portable(cv, block, counter, block_len, flags)
 }
@@ -150,7 +149,7 @@ fn compress(
 /// Portable BLAKE3 compression function
 #[cfg(not(any(
     all(feature = "simd", feature = "std", not(target_arch = "wasm32")),
-    all(feature = "wasm-simd", target_arch = "wasm32", target_feature = "simd128")
+    all(feature = "wasm-simd", target_arch = "wasm32")
 )))]
 fn compress_portable(
     cv: &[u32; 8],

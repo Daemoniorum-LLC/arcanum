@@ -32,7 +32,6 @@ use crate::chacha20_simd;
 #[cfg(all(
     feature = "wasm-simd",
     target_arch = "wasm32",
-    target_feature = "simd128"
 ))]
 use crate::chacha20_wasm_simd;
 
@@ -276,7 +275,6 @@ impl ChaCha20 {
         #[cfg(all(
             feature = "wasm-simd",
             target_arch = "wasm32",
-            target_feature = "simd128"
         ))]
         {
             if data.len() >= 256 {

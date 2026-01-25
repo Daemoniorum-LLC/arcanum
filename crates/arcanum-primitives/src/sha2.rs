@@ -182,11 +182,11 @@ impl Sha256 {
             return;
         }
 
-        // Use WASM SIMD when targeting wasm32 with simd128
+        // Use WASM SIMD when targeting wasm32 with wasm-simd feature
+        // NOTE: target_feature cfg removed - it's always set via .cargo/config.toml
         #[cfg(all(
             feature = "wasm-simd",
             target_arch = "wasm32",
-            target_feature = "simd128"
         ))]
         {
             crate::sha256_wasm_simd::compress_block(&mut self.state, block);
@@ -195,7 +195,7 @@ impl Sha256 {
 
         #[cfg(not(any(
             all(feature = "simd", feature = "std", not(target_arch = "wasm32")),
-            all(feature = "wasm-simd", target_arch = "wasm32", target_feature = "simd128")
+            all(feature = "wasm-simd", target_arch = "wasm32")
         )))]
         self.compress_block_portable(block);
     }

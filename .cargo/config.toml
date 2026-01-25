@@ -1,0 +1,7 @@
+# Cargo configuration for Arcanum
+# See: https://doc.rust-lang.org/cargo/reference/config.html
+
+# Enable WASM SIMD 128-bit intrinsics when targeting wasm32
+# This is required for the wasm-simd feature to actually emit v128 instructions
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "target-feature=+simd128"]

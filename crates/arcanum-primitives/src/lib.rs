@@ -128,7 +128,6 @@ pub mod chacha20_simd;
     feature = "chacha20",
     feature = "wasm-simd",
     target_arch = "wasm32",
-    target_feature = "simd128"
 ))]
 #[allow(unsafe_code)]
 pub mod chacha20_wasm_simd;
@@ -138,17 +137,16 @@ pub mod chacha20_wasm_simd;
     feature = "blake3",
     feature = "wasm-simd",
     target_arch = "wasm32",
-    target_feature = "simd128"
 ))]
 #[allow(unsafe_code)]
 pub mod blake3_wasm_simd;
 
 // WASM SIMD 128-bit acceleration for SHA-256
+// NOTE: Temporarily unconditional for debugging
 #[cfg(all(
     feature = "sha2",
     feature = "wasm-simd",
     target_arch = "wasm32",
-    target_feature = "simd128"
 ))]
 #[allow(unsafe_code)]
 pub mod sha256_wasm_simd;
