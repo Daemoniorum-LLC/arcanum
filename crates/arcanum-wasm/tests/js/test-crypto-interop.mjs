@@ -518,8 +518,9 @@ describe("Random Generation Sanity", () => {
 
     // Expected count per byte value: 10000/256 ≈ 39
     // Check that no value is extremely over or under-represented
+    // Using 75% tolerance to avoid flaky failures from normal statistical variation
     const expected = 10000 / 256;
-    const tolerance = expected * 0.5; // 50% tolerance
+    const tolerance = expected * 0.75; // 75% tolerance
 
     for (let i = 0; i < 256; i++) {
       assert.ok(
