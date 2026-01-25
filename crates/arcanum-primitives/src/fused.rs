@@ -57,7 +57,7 @@
 
 use zeroize::Zeroize;
 
-use crate::chacha20::{chacha20_block, KEY_SIZE, NONCE_SIZE};
+use crate::chacha20::{KEY_SIZE, NONCE_SIZE, chacha20_block};
 use crate::poly1305::TAG_SIZE;
 
 #[cfg(all(target_arch = "x86_64", feature = "simd"))]

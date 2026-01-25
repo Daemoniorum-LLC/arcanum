@@ -28,12 +28,12 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.2"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/daemoniorum/arcanum"
+repository = "https://github.com/Daemoniorum-LLC/arcanum"
 authors = ["Daemoniorum Engineering <engineering@daemoniorum.com>"]
-rust-version = "1.85"
+rust-version = "1.89"
 keywords = ["cryptography", "security", "encryption", "post-quantum", "zero-knowledge"]
 categories = ["cryptography", "no-std"]
 
@@ -41,21 +41,21 @@ categories = ["cryptography", "no-std"]
 # ═══════════════════════════════════════════════════════════════════════════════
 # INTERNAL CRATES
 # ═══════════════════════════════════════════════════════════════════════════════
-arcanum-core = { path = "crates/arcanum-core" }
-arcanum-primitives = { path = "crates/arcanum-primitives" }
-arcanum-symmetric = { path = "crates/arcanum-symmetric" }
-arcanum-asymmetric = { path = "crates/arcanum-asymmetric" }
-arcanum-signatures = { path = "crates/arcanum-signatures" }
-arcanum-hash = { path = "crates/arcanum-hash" }
-arcanum-pqc = { path = "crates/arcanum-pqc" }
-arcanum-zkp = { path = "crates/arcanum-zkp" }
-arcanum-threshold = { path = "crates/arcanum-threshold" }
-arcanum-verify = { path = "crates/arcanum-verify" }
-arcanum-agile = { path = "crates/arcanum-agile" }
-arcanum-holocrypt = { path = "crates/arcanum-holocrypt" }
-arcanum-keystore = { path = "crates/arcanum-keystore" }
-arcanum-protocols = { path = "crates/arcanum-protocols" }
-arcanum-formats = { path = "crates/arcanum-formats" }
+arcanum-core = { version = "0.1.1", path = "crates/arcanum-core" }
+arcanum-primitives = { version = "0.1.1", path = "crates/arcanum-primitives" }
+arcanum-symmetric = { version = "0.1.1", path = "crates/arcanum-symmetric" }
+arcanum-asymmetric = { version = "0.1.1", path = "crates/arcanum-asymmetric" }
+arcanum-signatures = { version = "0.1.1", path = "crates/arcanum-signatures" }
+arcanum-hash = { version = "0.1.1", path = "crates/arcanum-hash" }
+arcanum-pqc = { version = "0.1.1", path = "crates/arcanum-pqc" }
+arcanum-zkp = { version = "0.1.1", path = "crates/arcanum-zkp" }
+arcanum-threshold = { version = "0.1.1", path = "crates/arcanum-threshold" }
+arcanum-verify = { version = "0.1.1", path = "crates/arcanum-verify" }
+arcanum-agile = { version = "0.1.1", path = "crates/arcanum-agile" }
+arcanum-holocrypt = { version = "0.1.1", path = "crates/arcanum-holocrypt" }
+arcanum-keystore = { version = "0.1.1", path = "crates/arcanum-keystore" }
+arcanum-protocols = { version = "0.1.1", path = "crates/arcanum-protocols" }
+arcanum-formats = { version = "0.1.1", path = "crates/arcanum-formats" }
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SYMMETRIC CRYPTOGRAPHY

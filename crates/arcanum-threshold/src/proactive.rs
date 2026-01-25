@@ -15,7 +15,7 @@
 //! Since q(0) = 0, the reconstructed secret remains unchanged:
 //! - new_share[i] = old_share[i] + q(i)
 //! - secret = Σ(lagrange_i * new_share[i]) = Σ(lagrange_i * old_share[i]) + Σ(lagrange_i * q(i))
-//!                                          = old_secret + q(0) = old_secret + 0 = old_secret
+//!   = old_secret + q(0) = old_secret + 0 = old_secret
 //!
 //! ## Distributed Refresh
 //!

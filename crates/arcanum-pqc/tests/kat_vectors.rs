@@ -11,6 +11,7 @@
 //! 4. **Consistency**: Cross-validate sign/verify across parameter sets
 
 #![cfg(feature = "ml-dsa-native")]
+#![allow(dead_code)]
 
 use arcanum_pqc::ml_dsa::keygen::{generate_keypair_internal, pack_pk, pack_sk};
 use arcanum_pqc::ml_dsa::params::{MlDsaParams, Params44, Params65, Params87};

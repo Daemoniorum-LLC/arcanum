@@ -47,8 +47,22 @@
 //! ```
 
 #![deny(unsafe_code)]
-#![warn(missing_docs, rust_2018_idioms)]
-#![allow(clippy::too_many_arguments, dead_code)]
+#![warn(rust_2018_idioms)]
+#![allow(missing_docs, clippy::too_many_arguments, dead_code, unused_imports)]
+#![allow(clippy::duplicated_attributes, clippy::int_plus_one)]
+#![allow(clippy::needless_range_loop, clippy::assertions_on_constants)]
+#![allow(clippy::unnecessary_cast, clippy::let_and_return)]
+#![allow(clippy::expect_fun_call, clippy::manual_range_contains)]
+#![allow(clippy::assign_op_pattern, clippy::clone_on_copy)]
+#![allow(clippy::doc_overindented_list_items, clippy::manual_div_ceil)]
+#![allow(clippy::needless_borrows_for_generic_args)]
+#![allow(
+    unused_variables,
+    unused_unsafe,
+    deprecated,
+    unused_assignments,
+    unused_mut
+)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(not(feature = "std"))]

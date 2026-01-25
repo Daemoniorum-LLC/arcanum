@@ -2327,8 +2327,8 @@ mod tests {
             let ultra_elapsed = start.elapsed();
 
             // Reference (poly1305 crate)
-            use poly1305::universal_hash::{KeyInit, UniversalHash};
             use poly1305::Poly1305 as RefPoly1305;
+            use poly1305::universal_hash::{KeyInit, UniversalHash};
             let start = Instant::now();
             for _ in 0..iterations {
                 let mut mac = RefPoly1305::new(&key.into());

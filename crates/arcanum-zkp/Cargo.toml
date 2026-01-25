@@ -1,16 +1,17 @@
 [package]
 name = "arcanum-zkp"
-version = "0.1.0"
-edition = "2024"
-authors = ["Daemoniorum <daemoniorum@persona.dev>"]
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+rust-version.workspace = true
 description = "Zero-knowledge proofs: Bulletproofs, Schnorr proofs, commitments"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/daemoniorum/arcanum"
 keywords = ["cryptography", "zero-knowledge", "bulletproofs", "zkp"]
 categories = ["cryptography"]
 
 [dependencies]
-arcanum-core = { path = "../arcanum-core" }
+arcanum-core = { version = "0.1.0", path = "../arcanum-core" }
 
 # Bulletproofs (uses curve25519-dalek-ng internally)
 bulletproofs = "4.0"

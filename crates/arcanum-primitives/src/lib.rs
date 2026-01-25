@@ -1,3 +1,7 @@
+// Allow unsafe operations in unsafe functions (Rust 2024 default changed)
+// TODO: Refactor to use explicit unsafe blocks in future version
+#![allow(unsafe_op_in_unsafe_fn)]
+
 //! # Arcanum Primitives
 //!
 //! Native cryptographic primitive implementations for the Arcanum engine.
@@ -34,7 +38,7 @@
 #![warn(rust_2018_idioms)]
 // Allow various lints in SIMD modules - code is conditionally compiled per architecture
 #![allow(dead_code, unused_imports, unused_variables, unused_mut, missing_docs)]
-#![allow(clippy::missing_safety_doc, clippy::manual_is_multiple_of)]
+#![allow(clippy::missing_safety_doc)]
 #![allow(clippy::needless_return, clippy::too_many_arguments)]
 #![allow(clippy::needless_range_loop, clippy::manual_div_ceil)]
 #![allow(

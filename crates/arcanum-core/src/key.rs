@@ -496,17 +496,13 @@ impl KeyMetadata {
         let now = Utc::now();
 
         // Check not before
-        if let Some(not_before) = self.not_before {
-            if now < not_before {
-                return false;
-            }
+        if self.not_before.is_some_and(|not_before| now < not_before) {
+            return false;
         }
 
         // Check expiration
-        if let Some(expires_at) = self.expires_at {
-            if now > expires_at {
-                return false;
-            }
+        if self.expires_at.is_some_and(|expires_at| now > expires_at) {
+            return false;
         }
 
         true

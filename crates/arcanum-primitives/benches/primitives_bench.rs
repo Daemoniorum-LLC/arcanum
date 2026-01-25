@@ -11,7 +11,7 @@
     clippy::get_first
 )]
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 
 use arcanum_primitives::blake3::Blake3;
 use arcanum_primitives::chacha20::ChaCha20;
@@ -605,7 +605,7 @@ fn bench_blake3_batch(c: &mut Criterion) {
 #[cfg(all(feature = "simd", target_arch = "x86_64"))]
 fn bench_blake3_avx512(c: &mut Criterion) {
     use arcanum_primitives::blake3_simd::{
-        has_avx512f, hash_16_chunks_parallel, hash_8_chunks_parallel, IV,
+        IV, has_avx512f, hash_8_chunks_parallel, hash_16_chunks_parallel,
     };
 
     let mut group = c.benchmark_group("BLAKE3-AVX512");
@@ -765,7 +765,7 @@ fn bench_chacha20poly1305_seal(c: &mut Criterion) {
 }
 
 fn bench_chacha20poly1305_vs_rustcrypto(c: &mut Criterion) {
-    use chacha20poly1305::{aead::Aead, ChaCha20Poly1305 as RefChaCha20Poly1305, KeyInit, Nonce};
+    use chacha20poly1305::{ChaCha20Poly1305 as RefChaCha20Poly1305, KeyInit, Nonce, aead::Aead};
 
     let mut group = c.benchmark_group("ChaCha20-Poly1305/Comparison");
     let key = [0x42u8; 32];
@@ -821,7 +821,7 @@ fn bench_chacha20poly1305_vs_rustcrypto(c: &mut Criterion) {
 
 fn bench_chacha20poly1305_in_place(c: &mut Criterion) {
     use chacha20poly1305::{
-        aead::AeadInPlace, ChaCha20Poly1305 as RefChaCha20Poly1305, KeyInit, Nonce,
+        ChaCha20Poly1305 as RefChaCha20Poly1305, KeyInit, Nonce, aead::AeadInPlace,
     };
 
     let mut group = c.benchmark_group("ChaCha20-Poly1305-InPlace/Comparison");
@@ -860,8 +860,8 @@ fn bench_chacha20poly1305_in_place(c: &mut Criterion) {
 
 fn bench_poly1305(c: &mut Criterion) {
     use arcanum_primitives::poly1305::Poly1305;
-    use poly1305::universal_hash::{KeyInit, UniversalHash};
     use poly1305::Poly1305 as RefPoly1305;
+    use poly1305::universal_hash::{KeyInit, UniversalHash};
 
     let mut group = c.benchmark_group("Poly1305/Comparison");
     let key = [0x42u8; 32];
@@ -887,8 +887,8 @@ fn bench_poly1305(c: &mut Criterion) {
 fn bench_poly1305_simd(c: &mut Criterion) {
     use arcanum_primitives::poly1305::Poly1305;
     use arcanum_primitives::poly1305_simd::Poly1305Simd;
-    use poly1305::universal_hash::{KeyInit, UniversalHash};
     use poly1305::Poly1305 as RefPoly1305;
+    use poly1305::universal_hash::{KeyInit, UniversalHash};
 
     let mut group = c.benchmark_group("Poly1305-SIMD/Comparison");
     let key = [0x42u8; 32];
@@ -978,7 +978,7 @@ fn bench_chacha20poly1305_large_scale(c: &mut Criterion) {
         // RustCrypto for reference
         group.bench_function(format!("RustCrypto ({})", size_label), |b| {
             use chacha20poly1305::{
-                aead::AeadInPlace, ChaCha20Poly1305 as RefChaCha20Poly1305, KeyInit, Nonce,
+                ChaCha20Poly1305 as RefChaCha20Poly1305, KeyInit, Nonce, aead::AeadInPlace,
             };
             let cipher = RefChaCha20Poly1305::new(&key.into());
             let nonce_ref = Nonce::from_slice(&nonce);
@@ -1117,7 +1117,7 @@ fn bench_fused_chacha20poly1305(c: &mut Criterion) {
         // RustCrypto for reference
         group.bench_function(format!("RustCrypto ({}B)", size), |b| {
             use chacha20poly1305::{
-                aead::AeadInPlace, ChaCha20Poly1305 as RefChaCha20Poly1305, KeyInit, Nonce,
+                ChaCha20Poly1305 as RefChaCha20Poly1305, KeyInit, Nonce, aead::AeadInPlace,
             };
             let cipher = RefChaCha20Poly1305::new(&key.into());
             let nonce_ref = Nonce::from_slice(&nonce);

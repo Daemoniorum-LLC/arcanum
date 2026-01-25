@@ -1,10 +1,12 @@
 [package]
 name = "arcanum-primitives"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+rust-version.workspace = true
 description = "Native cryptographic primitives for Arcanum"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/Daemoniorum-LLC/workspace"
 keywords = ["cryptography", "hash", "cipher", "aead"]
 categories = ["cryptography", "no-std"]
 

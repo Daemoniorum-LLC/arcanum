@@ -412,13 +412,17 @@ mod tests {
     #[test]
     fn test_u64_ct_eq() {
         assert!(0u64.ct_eq(&0u64).is_true());
-        assert!(0xFFFFFFFFFFFFFFFFu64
-            .ct_eq(&0xFFFFFFFFFFFFFFFFu64)
-            .is_true());
+        assert!(
+            0xFFFFFFFFFFFFFFFFu64
+                .ct_eq(&0xFFFFFFFFFFFFFFFFu64)
+                .is_true()
+        );
         assert!(!0u64.ct_eq(&1u64).is_true());
-        assert!(!0x8000000000000000u64
-            .ct_eq(&0x8000000000000001u64)
-            .is_true());
+        assert!(
+            !0x8000000000000000u64
+                .ct_eq(&0x8000000000000001u64)
+                .is_true()
+        );
     }
 
     // ─────────────────────────────────────────────────────────────────────────────

@@ -49,7 +49,7 @@ bench-ring = ["dep:ring"]
 
 [dependencies]
 arcanum-core = { workspace = true }
-arcanum-primitives = { path = "../arcanum-primitives", optional = true, features = ["std", "simd", "rayon", "sha2", "blake3"] }
+arcanum-primitives = { version = "0.1.0", path = "../arcanum-primitives", optional = true, features = ["std", "simd", "rayon", "sha2", "blake3"] }
 
 # SHA-2 family
 sha2 = { workspace = true, optional = true }

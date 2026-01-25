@@ -109,6 +109,7 @@ Please include the following in your report:
 
 - **Side-channel attacks:** Timing attacks are mitigated through constant-time implementations, but physical side-channel attacks (power analysis, EM) are not addressed
 - **Post-quantum algorithms:** ML-KEM and ML-DSA are based on NIST standardized algorithms but are relatively new
+- **RSA (RUSTSEC-2023-0071):** The optional RSA feature uses the `rsa` crate which has a known timing vulnerability (Marvin Attack). As of v0.1.1, RSA is **not included in default features**. Users who don't need RSA are not affected. If you require RSA, understand the risks or wait for an upstream fix.
 
 ### Moloch
 

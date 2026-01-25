@@ -17,7 +17,7 @@
 //!
 //! Note: Actual throughput varies by CPU model and workload.
 
-use super::chacha20::{chacha20_block, BLOCK_SIZE, KEY_SIZE, NONCE_SIZE};
+use super::chacha20::{BLOCK_SIZE, KEY_SIZE, NONCE_SIZE, chacha20_block};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SSE2 IMPLEMENTATION

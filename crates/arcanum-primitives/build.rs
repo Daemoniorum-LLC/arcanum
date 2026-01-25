@@ -15,7 +15,9 @@ fn main() {
                 "cargo:warning=CUDA library not found at {}. Build it with:",
                 lib_path
             );
-            println!("cargo:warning=nvcc -O3 -arch=sm_89 --shared --compiler-options '-fPIC' blake3_cuda.cu -o libblake3_cuda.so");
+            println!(
+                "cargo:warning=nvcc -O3 -arch=sm_89 --shared --compiler-options '-fPIC' blake3_cuda.cu -o libblake3_cuda.so"
+            );
         }
 
         // Tell Cargo to re-run if the library changes

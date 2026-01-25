@@ -4,10 +4,14 @@
 
 #![allow(clippy::unit_arg)]
 
-use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
+#[cfg(feature = "rsa")]
+use criterion::{BenchmarkId, Throughput};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
+#[cfg(feature = "rsa")]
+use arcanum_asymmetric::RsaPrivateKey;
 use arcanum_asymmetric::{
-    P256SecretKey, P384SecretKey, RsaPrivateKey, X25519PublicKey, X25519SecretKey, x25519::X25519,
+    P256SecretKey, P384SecretKey, X25519PublicKey, X25519SecretKey, x25519::X25519,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -83,6 +87,7 @@ fn bench_x25519_triple_dh(c: &mut Criterion) {
 // RSA BENCHMARKS
 // ═══════════════════════════════════════════════════════════════════════════════
 
+#[cfg(feature = "rsa")]
 fn bench_rsa_keygen(c: &mut Criterion) {
     let mut group = c.benchmark_group("rsa_keygen");
     group.sample_size(10); // RSA keygen is slow
@@ -96,6 +101,7 @@ fn bench_rsa_keygen(c: &mut Criterion) {
     group.finish();
 }
 
+#[cfg(feature = "rsa")]
 fn bench_rsa_encrypt_decrypt(c: &mut Criterion) {
     let mut group = c.benchmark_group("rsa_encrypt_decrypt");
 
@@ -167,6 +173,7 @@ fn bench_rsa_encrypt_decrypt(c: &mut Criterion) {
     group.finish();
 }
 
+#[cfg(feature = "rsa")]
 fn bench_rsa_sign_verify(c: &mut Criterion) {
     let mut group = c.benchmark_group("rsa_sign_verify");
 
@@ -325,7 +332,13 @@ fn bench_serialization(c: &mut Criterion) {
         b.iter(|| black_box(X25519PublicKey::from_hex(&hex_str).unwrap()));
     });
 
-    // RSA serialization
+    group.finish();
+}
+
+#[cfg(feature = "rsa")]
+fn bench_rsa_serialization(c: &mut Criterion) {
+    let mut group = c.benchmark_group("rsa_serialization");
+
     let rsa_private = RsaPrivateKey::generate(2048).unwrap();
     let rsa_der = rsa_private.to_pkcs8_der().unwrap();
 
@@ -340,6 +353,7 @@ fn bench_serialization(c: &mut Criterion) {
     group.finish();
 }
 
+#[cfg(feature = "rsa")]
 criterion_group!(
     benches,
     bench_x25519_keygen,
@@ -352,5 +366,19 @@ criterion_group!(
     bench_ecdh_dh,
     bench_key_exchange_comparison,
     bench_serialization,
+    bench_rsa_serialization,
 );
+
+#[cfg(not(feature = "rsa"))]
+criterion_group!(
+    benches,
+    bench_x25519_keygen,
+    bench_x25519_dh,
+    bench_x25519_triple_dh,
+    bench_ecdh_keygen,
+    bench_ecdh_dh,
+    bench_key_exchange_comparison,
+    bench_serialization,
+);
+
 criterion_main!(benches);

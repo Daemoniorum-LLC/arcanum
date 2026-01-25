@@ -19,7 +19,7 @@ arcanum-symmetric = { path = "../crates/arcanum-symmetric" }
 arcanum-asymmetric = { path = "../crates/arcanum-asymmetric" }
 arcanum-signatures = { path = "../crates/arcanum-signatures" }
 arcanum-hash = { path = "../crates/arcanum-hash" }
-arcanum-pqc = { path = "../crates/arcanum-pqc" }
+arcanum-pqc = { path = "../crates/arcanum-pqc", features = ["ml-dsa", "ml-kem"] }
 
 # Fuzz targets for AEAD
 [[bin]]
@@ -64,6 +64,22 @@ bench = false
 [[bin]]
 name = "fuzz_ml_kem"
 path = "fuzz_targets/fuzz_ml_kem.rs"
+test = false
+doc = false
+bench = false
+
+# Fuzz targets for PQC signatures
+[[bin]]
+name = "fuzz_ml_dsa"
+path = "fuzz_targets/fuzz_ml_dsa.rs"
+test = false
+doc = false
+bench = false
+
+# Fuzz targets for ECDH
+[[bin]]
+name = "fuzz_p256"
+path = "fuzz_targets/fuzz_p256.rs"
 test = false
 doc = false
 bench = false

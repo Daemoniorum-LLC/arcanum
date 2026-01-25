@@ -44,7 +44,7 @@ impl Hex {
 
     /// Check if a string is valid hex.
     pub fn is_valid(s: &str) -> bool {
-        s.len() % 2 == 0 && s.chars().all(|c| c.is_ascii_hexdigit())
+        s.len().is_multiple_of(2) && s.chars().all(|c| c.is_ascii_hexdigit())
     }
 }
 

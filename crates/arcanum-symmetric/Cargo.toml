@@ -35,7 +35,7 @@ bench-ring = ["dep:ring"]
 
 [dependencies]
 arcanum-core = { workspace = true }
-arcanum-primitives = { path = "../arcanum-primitives", optional = true, features = ["std", "chacha20poly1305"] }
+arcanum-primitives = { version = "0.1.0", path = "../arcanum-primitives", optional = true, features = ["std", "chacha20poly1305"] }
 
 # AES family
 aes = { workspace = true, optional = true }

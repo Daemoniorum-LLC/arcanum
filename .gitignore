@@ -24,3 +24,4 @@ criterion/
 *.gcda
 *.gcno
 tarpaulin-report.html
+*.so

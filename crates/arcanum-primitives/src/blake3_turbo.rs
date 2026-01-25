@@ -658,7 +658,7 @@ pub fn hash_turbo(data: &[u8]) -> [u8; 32] {
 
 /// Merge chaining values into final root hash.
 fn merge_cvs_to_root(cvs: &[[u32; 8]]) -> [u8; 32] {
-    use super::blake3_simd::{compress_auto, IV};
+    use super::blake3_simd::{IV, compress_auto};
 
     const PARENT: u8 = 4;
     const ROOT: u8 = 8;

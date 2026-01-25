@@ -1106,7 +1106,7 @@ mod tests {
         block[1] = 0x62; // 'b'
         block[2] = 0x63; // 'c'
         block[3] = 0x80; // padding start
-                         // Length in bits at end (big-endian)
+        // Length in bits at end (big-endian)
         block[63] = 24; // 3 bytes * 8 = 24 bits
 
         let mut state = H256_INIT;

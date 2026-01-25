@@ -3,7 +3,7 @@
 //! Measures performance of ML-KEM and ML-DSA at various security levels,
 //! plus hybrid schemes combining classical and post-quantum crypto.
 
-#![allow(unused_imports, clippy::redundant_closure)]
+#![allow(unused_imports, clippy::redundant_closure, dead_code)]
 
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 
