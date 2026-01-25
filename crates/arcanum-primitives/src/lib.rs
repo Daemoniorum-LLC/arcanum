@@ -123,6 +123,16 @@ pub mod chacha20;
 #[allow(unsafe_code)]
 pub mod chacha20_simd;
 
+// WASM SIMD 128-bit acceleration for ChaCha20
+#[cfg(all(
+    feature = "chacha20",
+    feature = "wasm-simd",
+    target_arch = "wasm32",
+    target_feature = "simd128"
+))]
+#[allow(unsafe_code)]
+pub mod chacha20_wasm_simd;
+
 #[cfg(feature = "poly1305")]
 pub mod poly1305;
 

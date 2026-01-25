@@ -27,6 +27,11 @@ shake = []  # SHAKE128/SHAKE256 (Keccak-based XOF) - required for ML-DSA
 # Enables SSE2/AVX2 on x86_64 for ChaCha20
 simd = ["std"]
 
+# WASM SIMD 128-bit acceleration
+# Enables v128 intrinsics when targeting wasm32 with +simd128
+# Build with: RUSTFLAGS="-C target-feature=+simd128" cargo build --target wasm32-unknown-unknown
+wasm-simd = []
+
 # CUDA acceleration for batch hashing (requires nvcc and CUDA runtime)
 # Build: nvcc -O3 -arch=sm_89 -shared -fPIC blake3_cuda.cu -o libblake3_cuda.so
 cuda = ["std"]
