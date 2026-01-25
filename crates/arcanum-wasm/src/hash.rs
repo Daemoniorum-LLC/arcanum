@@ -24,7 +24,7 @@ pub fn sha256(data: &[u8]) -> Vec<u8> {
 
     #[cfg(all(feature = "backend-native", not(feature = "backend-rustcrypto")))]
     {
-        arcanum_primitives::sha2::sha256(data).to_vec()
+        arcanum_primitives::sha2::Sha256::hash(data).to_vec()
     }
 
     #[cfg(not(any(feature = "backend-rustcrypto", feature = "backend-native")))]
@@ -52,9 +52,9 @@ pub fn sha3_256(data: &[u8]) -> Vec<u8> {
 
     #[cfg(all(feature = "backend-native", not(feature = "backend-rustcrypto")))]
     {
-        // Native backend doesn't have SHA-3 yet - fall back to rustcrypto
-        // GAP: Need to add SHA-3 to arcanum-primitives
-        compile_error!("SHA-3 not yet implemented in native backend");
+        // Native backend doesn't have SHA-3 - use RustCrypto sha3 crate
+        use sha3::{Digest, Sha3_256};
+        Sha3_256::digest(data).to_vec()
     }
 
     #[cfg(not(any(feature = "backend-rustcrypto", feature = "backend-native")))]
@@ -81,7 +81,7 @@ pub fn blake3(data: &[u8]) -> Vec<u8> {
 
     #[cfg(all(feature = "backend-native", not(feature = "backend-rustcrypto")))]
     {
-        arcanum_primitives::blake3::hash(data).to_vec()
+        arcanum_primitives::blake3::Blake3::hash(data).to_vec()
     }
 
     #[cfg(not(any(feature = "backend-rustcrypto", feature = "backend-native")))]

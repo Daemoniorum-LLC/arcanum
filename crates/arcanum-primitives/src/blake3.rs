@@ -23,6 +23,9 @@
 //! let derived = Blake3::derive_key("my-context", b"input material");
 //! ```
 
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
+
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // ═══════════════════════════════════════════════════════════════════════════════
