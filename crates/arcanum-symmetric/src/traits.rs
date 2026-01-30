@@ -1,5 +1,8 @@
 //! Traits for symmetric encryption algorithms.
 
+#[cfg(not(feature = "std"))]
+use alloc::{vec, vec::Vec};
+
 use arcanum_core::error::{Error, Result};
 
 // ═══════════════════════════════════════════════════════════════════════════════

@@ -18,6 +18,9 @@
 //! - r is the blinding factor (randomness)
 //! - G, H are generator points (H is chosen via hash-to-curve)
 
+#[cfg(not(feature = "std"))]
+use alloc::string::String;
+
 use crate::curve::{CompressedRistretto, RISTRETTO_BASEPOINT_POINT, RistrettoPoint, Scalar};
 use arcanum_core::error::{Error, Result};
 use rand::RngCore;
@@ -89,8 +92,8 @@ impl PedersenOpening {
     }
 }
 
-impl std::fmt::Debug for PedersenOpening {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for PedersenOpening {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "PedersenOpening([REDACTED])")
     }
 }
@@ -199,13 +202,13 @@ impl PedersenCommitment {
     }
 }
 
-impl std::fmt::Debug for PedersenCommitment {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for PedersenCommitment {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "PedersenCommitment({}...)", &self.to_hex()[..16])
     }
 }
 
-impl std::ops::Add for PedersenCommitment {
+impl core::ops::Add for PedersenCommitment {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
@@ -215,7 +218,7 @@ impl std::ops::Add for PedersenCommitment {
     }
 }
 
-impl std::ops::Add for &PedersenCommitment {
+impl core::ops::Add for &PedersenCommitment {
     type Output = PedersenCommitment;
 
     fn add(self, other: Self) -> PedersenCommitment {
@@ -225,7 +228,7 @@ impl std::ops::Add for &PedersenCommitment {
     }
 }
 
-impl std::ops::Sub for PedersenCommitment {
+impl core::ops::Sub for PedersenCommitment {
     type Output = Self;
 
     fn sub(self, other: Self) -> Self {
@@ -276,8 +279,8 @@ impl VectorCommitment {
     }
 }
 
-impl std::fmt::Debug for VectorCommitment {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for VectorCommitment {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "VectorCommitment({} bytes)", 32)
     }
 }

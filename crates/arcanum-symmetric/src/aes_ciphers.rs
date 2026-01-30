@@ -1,5 +1,8 @@
 //! AES-based encryption algorithms.
 
+#[cfg(not(feature = "std"))]
+use alloc::{vec, vec::Vec};
+
 use crate::traits::{Cipher, StreamCipher, validate_input_sizes};
 use aead::generic_array::GenericArray;
 use aead::{Aead, AeadInPlace, KeyInit, Payload, consts::U12};

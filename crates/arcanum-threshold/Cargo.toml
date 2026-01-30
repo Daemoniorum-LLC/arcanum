@@ -8,11 +8,12 @@ repository.workspace = true
 authors.workspace = true
 rust-version.workspace = true
 keywords = ["cryptography", "threshold", "secret-sharing", "frost", "mpc"]
-categories = ["cryptography"]
+categories = ["cryptography", "no-std"]
 
 [features]
 default = ["std", "shamir", "frost"]
 std = []
+alloc = []  # For Vec, String without full std
 
 # Secret sharing schemes
 shamir = []

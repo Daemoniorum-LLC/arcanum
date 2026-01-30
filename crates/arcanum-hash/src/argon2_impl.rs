@@ -18,6 +18,9 @@ use argon2::{
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec};
+
 /// Argon2id parameters.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Argon2Params {

@@ -8,11 +8,12 @@ repository.workspace = true
 authors.workspace = true
 rust-version.workspace = true
 keywords = ["cryptography", "agility", "migration", "versioning", "policy"]
-categories = ["cryptography"]
+categories = ["cryptography", "no-std"]
 
 [features]
 default = ["std", "registry", "containers"]
 std = []
+alloc = []  # For Vec, String without full std
 
 # Algorithm registry
 registry = []

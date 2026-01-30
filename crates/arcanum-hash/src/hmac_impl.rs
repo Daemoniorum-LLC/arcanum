@@ -5,7 +5,10 @@
 use arcanum_core::error::{Error, Result};
 use hmac::{Hmac as HmacInner, Mac};
 use sha2::{Sha256, Sha384, Sha512};
-use std::marker::PhantomData;
+use core::marker::PhantomData;
+
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
 
 /// HMAC message authentication code.
 pub struct Hmac<H> {

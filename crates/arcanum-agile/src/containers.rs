@@ -2,6 +2,9 @@
 //!
 //! Self-describing containers that include algorithm metadata.
 
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec::Vec};
+
 use crate::errors::{AgileError, AgileResult};
 use crate::registry::{AlgorithmId, AlgorithmRegistry};
 use arcanum_symmetric::{

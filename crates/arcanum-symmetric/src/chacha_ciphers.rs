@@ -9,6 +9,9 @@
 //! Note: XChaCha20-Poly1305 always uses the RustCrypto backend as our native
 //! implementation does not yet support extended nonces.
 
+#[cfg(not(feature = "std"))]
+use alloc::{vec, vec::Vec};
+
 use crate::traits::{Cipher, StreamCipher, validate_input_sizes};
 use arcanum_core::error::{Error, Result};
 use rand_core::{OsRng, RngCore};

@@ -13,6 +13,7 @@ categories = ["cryptography", "development-tools::testing"]
 [features]
 default = ["std", "timing"]
 std = []
+alloc = []  # For Vec, String without full std
 
 # Timing analysis (side-channel testing)
 timing = ["dep:dudect-bencher"]

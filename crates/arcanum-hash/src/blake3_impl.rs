@@ -18,6 +18,9 @@
 use crate::traits::{ExtendableOutput, HashOutput, Hasher, KeyDerivation};
 use arcanum_core::error::Result;
 
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec, vec::Vec};
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // BLAKE3 IMPLEMENTATION
 // ═══════════════════════════════════════════════════════════════════════════════

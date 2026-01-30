@@ -8,11 +8,12 @@ repository.workspace = true
 authors.workspace = true
 rust-version.workspace = true
 keywords = ["cryptography", "encryption", "aes", "chacha20"]
-categories = ["cryptography"]
+categories = ["cryptography", "no-std"]
 
 [features]
 default = ["std", "backend-native", "aes", "chacha20", "hardware-accel"]
 std = []
+alloc = []  # For Vec, String without full std
 
 # Backend selection - choose implementation strategy
 backend-native = ["dep:arcanum-primitives"]  # Use native Arcanum primitives (recommended)

@@ -9,6 +9,9 @@
 //! - **Equality Proof**: Prove two commitments hide the same value
 //! - **Representation Proof**: Prove knowledge of representation
 
+#[cfg(not(feature = "std"))]
+use alloc::{string::{String, ToString}, vec, vec::Vec};
+
 use crate::curve::{CompressedRistretto, RISTRETTO_BASEPOINT_POINT, RistrettoPoint, Scalar};
 use arcanum_core::error::{Error, Result};
 use rand::RngCore;
@@ -120,8 +123,8 @@ impl DiscreteLogProof {
     }
 }
 
-impl std::fmt::Debug for DiscreteLogProof {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for DiscreteLogProof {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "DiscreteLogProof(64 bytes)")
     }
 }
@@ -234,8 +237,8 @@ impl EqualityProof {
     }
 }
 
-impl std::fmt::Debug for EqualityProof {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for EqualityProof {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "EqualityProof(96 bytes)")
     }
 }
@@ -259,8 +262,8 @@ impl SchnorrProof {
     }
 }
 
-impl std::fmt::Debug for SchnorrProof {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for SchnorrProof {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "SchnorrProof({} commitments)", self.commitments.len())
     }
 }

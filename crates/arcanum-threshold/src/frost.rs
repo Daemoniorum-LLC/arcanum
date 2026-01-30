@@ -10,9 +10,16 @@
 //! - **Ed25519**: For EdDSA-compatible signatures
 //! - **secp256k1**: For Bitcoin/Ethereum compatibility
 
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+
 use crate::error::{Result, ThresholdError};
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "std")]
 use std::collections::BTreeMap;
+#[cfg(not(feature = "std"))]
+use alloc::collections::BTreeMap;
 
 #[cfg(feature = "frost-ed25519")]
 use frost_ed25519 as frost;
@@ -49,8 +56,8 @@ impl SigningShare {
     }
 }
 
-impl std::fmt::Debug for SigningShare {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for SigningShare {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "SigningShare(id={:?})", self.identifier)
     }
 }
@@ -81,8 +88,8 @@ impl VerifyingShare {
     }
 }
 
-impl std::fmt::Debug for VerifyingShare {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for VerifyingShare {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "VerifyingShare({} bytes)", self.identifier_bytes.len())
     }
 }
@@ -115,8 +122,8 @@ impl GroupVerifyingKey {
     }
 }
 
-impl std::fmt::Debug for GroupVerifyingKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for GroupVerifyingKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "GroupVerifyingKey({} bytes)", self.bytes.len())
     }
 }
@@ -341,8 +348,8 @@ impl Signature {
     }
 }
 
-impl std::fmt::Debug for Signature {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Signature {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Signature({} bytes)", self.bytes.len())
     }
 }

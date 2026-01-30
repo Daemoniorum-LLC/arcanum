@@ -1,5 +1,8 @@
 //! Error types for verification operations.
 
+#[cfg(not(feature = "std"))]
+use alloc::string::String;
+
 use thiserror::Error;
 
 /// Errors that can occur during verification.

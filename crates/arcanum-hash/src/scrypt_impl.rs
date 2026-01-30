@@ -12,6 +12,9 @@ use scrypt::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec};
+
 /// scrypt parameters.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScryptParams {

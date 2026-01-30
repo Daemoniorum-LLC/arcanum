@@ -2,6 +2,9 @@
 
 use arcanum_core::error::Result;
 
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+
 /// Trait for asymmetric encryption.
 pub trait AsymmetricEncrypt {
     /// Ciphertext type.

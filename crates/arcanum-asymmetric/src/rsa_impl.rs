@@ -34,6 +34,9 @@ use rsa::{
 use sha2::{Sha256, Sha384, Sha512};
 use zeroize::ZeroizeOnDrop;
 
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec::Vec};
+
 /// RSA private key.
 #[derive(Clone, ZeroizeOnDrop)]
 pub struct RsaPrivateKey {
@@ -157,8 +160,8 @@ impl RsaPrivateKey {
     }
 }
 
-impl std::fmt::Debug for RsaPrivateKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for RsaPrivateKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "RsaPrivateKey({}-bit, [REDACTED])", self.bits())
     }
 }
@@ -285,8 +288,8 @@ impl RsaPublicKey {
     }
 }
 
-impl std::fmt::Debug for RsaPublicKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for RsaPublicKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "RsaPublicKey({}-bit)", self.bits())
     }
 }
@@ -313,8 +316,8 @@ impl RsaKeyPair {
     }
 }
 
-impl std::fmt::Debug for RsaKeyPair {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for RsaKeyPair {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "RsaKeyPair({}-bit)", self.public.bits())
     }
 }
@@ -342,8 +345,8 @@ impl RsaOaepCiphertext {
     }
 }
 
-impl std::fmt::Debug for RsaOaepCiphertext {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for RsaOaepCiphertext {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "RsaOaepCiphertext({} bytes)", self.bytes.len())
     }
 }
@@ -371,8 +374,8 @@ impl RsaPkcs1Ciphertext {
     }
 }
 
-impl std::fmt::Debug for RsaPkcs1Ciphertext {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for RsaPkcs1Ciphertext {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "RsaPkcs1Ciphertext({} bytes)", self.bytes.len())
     }
 }
@@ -405,8 +408,8 @@ impl RsaPssSignature {
     }
 }
 
-impl std::fmt::Debug for RsaPssSignature {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for RsaPssSignature {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "RsaPssSignature({} bytes)", self.bytes.len())
     }
 }
@@ -439,8 +442,8 @@ impl RsaPkcs1Signature {
     }
 }
 
-impl std::fmt::Debug for RsaPkcs1Signature {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for RsaPkcs1Signature {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "RsaPkcs1Signature({} bytes)", self.bytes.len())
     }
 }

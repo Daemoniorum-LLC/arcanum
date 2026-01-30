@@ -1,5 +1,8 @@
 //! Traits for digital signature algorithms.
 
+#[cfg(not(feature = "std"))]
+use alloc::{string::{String, ToString}, vec::Vec};
+
 use arcanum_core::error::Result;
 
 /// Trait for signing keys (private keys).

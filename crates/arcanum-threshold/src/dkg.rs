@@ -15,10 +15,17 @@
 //! 3. **Verification**: Each participant verifies received shares against
 //!    the commitments and computes their final signing share.
 
+#[cfg(not(feature = "std"))]
+use alloc::{vec::Vec, format};
+
 use crate::error::{Result, ThresholdError};
 use crate::frost::PublicKeyPackage;
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "std")]
 use std::collections::BTreeMap;
+#[cfg(not(feature = "std"))]
+use alloc::collections::BTreeMap;
 
 #[cfg(feature = "frost-ed25519")]
 use frost_ed25519 as frost;
@@ -172,8 +179,8 @@ impl DkgParticipant {
     }
 }
 
-impl std::fmt::Debug for DkgParticipant {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for DkgParticipant {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "DkgParticipant(id={}, threshold={}, total={})",
@@ -214,8 +221,8 @@ impl DkgRound1 {
     }
 }
 
-impl std::fmt::Debug for DkgRound1 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for DkgRound1 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "DkgRound1({} bytes)", self.bytes.len())
     }
 }
@@ -257,8 +264,8 @@ impl DkgRound2 {
     }
 }
 
-impl std::fmt::Debug for DkgRound2 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for DkgRound2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "DkgRound2({} bytes)", self.bytes.len())
     }
 }

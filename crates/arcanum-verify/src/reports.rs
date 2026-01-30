@@ -1,6 +1,9 @@
 //! Report generation for verification results.
 
-use std::fmt;
+#[cfg(not(feature = "std"))]
+use alloc::{format, string::String, vec::Vec};
+
+use core::fmt;
 
 /// A verification report summarizing test results.
 #[derive(Debug, Clone)]
@@ -37,7 +40,16 @@ impl VerificationReport {
             suite_name: suite_name.into(),
             results: Vec::new(),
             passed: true,
-            timestamp: format!("{:?}", std::time::SystemTime::now()),
+            timestamp: {
+                #[cfg(feature = "std")]
+                {
+                    format!("{:?}", std::time::SystemTime::now())
+                }
+                #[cfg(not(feature = "std"))]
+                {
+                    String::from("(no_std: timestamp unavailable)")
+                }
+            },
         }
     }
 

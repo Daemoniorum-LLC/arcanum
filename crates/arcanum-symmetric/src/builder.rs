@@ -23,9 +23,12 @@
 //!     .decrypt(&ciphertext)?;
 //! ```
 
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+
 use crate::traits::Cipher;
 use arcanum_core::error::{Error, Result};
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 /// Builder for encryption and decryption operations.
 ///

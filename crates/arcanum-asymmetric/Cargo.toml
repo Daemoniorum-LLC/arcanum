@@ -8,7 +8,7 @@ authors.workspace = true
 rust-version.workspace = true
 description = "Asymmetric cryptography: RSA, ECIES, key exchange"
 keywords = ["cryptography", "rsa", "ecies", "x25519", "ecdh"]
-categories = ["cryptography"]
+categories = ["cryptography", "no-std"]
 
 [dependencies]
 arcanum-core = { version = "0.1.0", path = "../arcanum-core" }
@@ -52,7 +52,9 @@ criterion = "0.5"
 proptest = "1.5"
 
 [features]
-default = ["ecies", "x25519", "x448"]  # RSA excluded from default due to RUSTSEC-2023-0071
+default = ["std", "ecies", "x25519", "x448"]  # RSA excluded from default due to RUSTSEC-2023-0071
+std = []
+alloc = []  # For Vec, String without full std
 rsa = ["dep:rsa"]
 ecies = []
 x25519 = []

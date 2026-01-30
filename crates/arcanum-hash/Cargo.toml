@@ -8,11 +8,12 @@ repository.workspace = true
 authors.workspace = true
 rust-version.workspace = true
 keywords = ["cryptography", "hash", "sha", "blake3", "argon2"]
-categories = ["cryptography"]
+categories = ["cryptography", "no-std"]
 
 [features]
 default = ["std", "backend-native", "sha2", "sha3", "blake3", "kdf", "hardware-accel"]
 std = []
+alloc = []  # For Vec, String without full std
 
 # Backend selection - choose implementation strategy
 backend-native = ["dep:arcanum-primitives"]  # Use native Arcanum primitives (recommended)

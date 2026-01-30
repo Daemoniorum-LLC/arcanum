@@ -1,5 +1,8 @@
 //! Encrypted data containers.
 
+#[cfg(not(feature = "std"))]
+use alloc::{format, string::String, vec, vec::Vec};
+
 use arcanum_core::error::{Error, Result};
 use serde::{Deserialize, Serialize};
 

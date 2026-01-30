@@ -3,6 +3,9 @@
 //! Reveal specific chunks without exposing the entire container.
 //! Uses BLAKE3 Merkle proofs for verification.
 
+#[cfg(not(feature = "std"))]
+use alloc::{vec, vec::Vec};
+
 use crate::errors::{HoloCryptError, HoloCryptResult};
 use serde::{Deserialize, Serialize};
 

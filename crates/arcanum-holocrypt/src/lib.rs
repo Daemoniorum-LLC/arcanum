@@ -96,9 +96,13 @@
 //! - Module-LWE hardness (ML-KEM, ML-DSA)
 //! - Random oracle model (Fiat-Shamir)
 
+#![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]
 #![allow(unused_imports, unused_variables, dead_code, clippy::manual_div_ceil)]
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
 
 pub mod container;
 pub mod errors;

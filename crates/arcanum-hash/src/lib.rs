@@ -103,9 +103,13 @@
 //! - For password hashing, **always** use Argon2id, never raw hash functions
 //! - BLAKE3 keyed hashing is a proper MAC construction, not just `H(key || message)`
 
+#![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]
 #![allow(unused_variables, dead_code)]
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
 
 #[cfg(feature = "sha2")]
 pub mod sha2_impl;

@@ -9,6 +9,9 @@
 use crate::traits::{ExtendableOutput, HashOutput, Hasher};
 use digest::{Digest, ExtendableOutput as DigestXof, Update, XofReader};
 
+#[cfg(not(feature = "std"))]
+use alloc::{vec, vec::Vec};
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // SHA3-256
 // ═══════════════════════════════════════════════════════════════════════════════

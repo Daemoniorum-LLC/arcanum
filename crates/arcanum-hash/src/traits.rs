@@ -3,6 +3,9 @@
 use arcanum_core::error::Result;
 use serde::{Deserialize, Serialize};
 
+#[cfg(not(feature = "std"))]
+use alloc::{string::{String, ToString}, vec::Vec};
+
 /// Output of a hash function.
 #[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct HashOutput(Vec<u8>);
@@ -67,14 +70,14 @@ impl AsRef<[u8]> for HashOutput {
     }
 }
 
-impl std::fmt::Debug for HashOutput {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for HashOutput {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "HashOutput({})", self.to_hex())
     }
 }
 
-impl std::fmt::Display for HashOutput {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for HashOutput {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.to_hex())
     }
 }

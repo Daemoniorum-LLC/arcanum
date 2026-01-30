@@ -24,6 +24,9 @@
 //! └───────────────────────────────────────────────────────────────┘
 //! ```
 
+#[cfg(not(feature = "std"))]
+use alloc::{format, string::String, vec::Vec};
+
 use crate::errors::{HoloCryptError, HoloCryptResult};
 use serde::{Deserialize, Serialize};
 
@@ -100,8 +103,8 @@ impl PqcKeyPair {
 }
 
 #[cfg(feature = "pqc")]
-impl std::fmt::Debug for PqcKeyPair {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for PqcKeyPair {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "PqcKeyPair {{ ... }}")
     }
 }
@@ -256,7 +259,7 @@ pub struct PqcContainer<T> {
     verifying_key_bytes: Vec<u8>,
     /// Phantom type for the contained data
     #[serde(skip)]
-    _phantom: std::marker::PhantomData<T>,
+    _phantom: core::marker::PhantomData<T>,
 }
 
 #[cfg(feature = "pqc")]
@@ -313,7 +316,7 @@ impl<T: Serialize + for<'de> Deserialize<'de>> PqcContainer<T> {
             merkle_root,
             signature: signature.to_bytes().to_vec(),
             verifying_key_bytes: verifying_key.to_bytes().to_vec(),
-            _phantom: std::marker::PhantomData,
+            _phantom: core::marker::PhantomData,
         })
     }
 

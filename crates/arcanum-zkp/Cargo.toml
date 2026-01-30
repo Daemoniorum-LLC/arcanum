@@ -8,7 +8,7 @@ authors.workspace = true
 rust-version.workspace = true
 description = "Zero-knowledge proofs: Bulletproofs, Schnorr proofs, commitments"
 keywords = ["cryptography", "zero-knowledge", "bulletproofs", "zkp"]
-categories = ["cryptography"]
+categories = ["cryptography", "no-std"]
 
 [dependencies]
 arcanum-core = { version = "0.1.0", path = "../arcanum-core" }
@@ -37,7 +37,9 @@ thiserror = "1.0"
 criterion = "0.5"
 
 [features]
-default = ["bulletproofs", "schnorr-proofs"]
+default = ["std", "bulletproofs", "schnorr-proofs"]
+std = []
+alloc = []  # For Vec, String without full std
 bulletproofs = []
 schnorr-proofs = []
 serde = ["dep:serde"]

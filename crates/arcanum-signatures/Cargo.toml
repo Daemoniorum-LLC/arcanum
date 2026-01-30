@@ -8,10 +8,12 @@ repository.workspace = true
 authors.workspace = true
 rust-version.workspace = true
 keywords = ["cryptography", "signatures", "ed25519", "ecdsa", "schnorr"]
-categories = ["cryptography"]
+categories = ["cryptography", "no-std"]
 
 [features]
-default = ["ed25519", "ecdsa"]
+default = ["std", "ed25519", "ecdsa"]
+std = []
+alloc = []  # For Vec, String without full std
 ed25519 = ["dep:ed25519-dalek"]
 ecdsa = ["dep:ecdsa", "dep:p256", "dep:p384", "dep:k256"]
 schnorr = ["dep:k256"]

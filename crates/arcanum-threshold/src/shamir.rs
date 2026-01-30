@@ -3,6 +3,9 @@
 //! Provides (t, n) threshold secret sharing where any t shares
 //! can reconstruct the secret, but t-1 shares reveal nothing.
 
+#[cfg(not(feature = "std"))]
+use alloc::{vec, vec::Vec};
+
 use crate::error::{Result, ThresholdError};
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
@@ -58,8 +61,8 @@ impl Share {
     }
 }
 
-impl std::fmt::Debug for Share {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Share {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Share(index={}, {} bytes)", self.index, self.value.len())
     }
 }

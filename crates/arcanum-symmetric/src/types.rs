@@ -13,6 +13,9 @@
 //! let nonce: GcmNonce = Aes256Gcm::generate_nonce().try_into().unwrap();
 //! ```
 
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+
 use arcanum_core::error::{Error, Result};
 
 // ═══════════════════════════════════════════════════════════════════════════════

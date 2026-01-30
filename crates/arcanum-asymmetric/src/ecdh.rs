@@ -16,6 +16,9 @@ use elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
 use rand::rngs::OsRng;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec, vec::Vec};
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // P-256 ECDH
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -66,8 +69,8 @@ impl P256SecretKey {
     }
 }
 
-impl std::fmt::Debug for P256SecretKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for P256SecretKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "P256SecretKey([REDACTED])")
     }
 }
@@ -107,8 +110,8 @@ impl P256PublicKey {
     }
 }
 
-impl std::fmt::Debug for P256PublicKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for P256PublicKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let bytes = self.to_sec1_bytes_compressed();
         write!(f, "P256PublicKey({}...)", &hex::encode(&bytes[..8]))
     }
@@ -139,8 +142,8 @@ impl P256SharedSecret {
     }
 }
 
-impl std::fmt::Debug for P256SharedSecret {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for P256SharedSecret {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "P256SharedSecret([REDACTED])")
     }
 }
@@ -214,8 +217,8 @@ impl P384SecretKey {
     }
 }
 
-impl std::fmt::Debug for P384SecretKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for P384SecretKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "P384SecretKey([REDACTED])")
     }
 }
@@ -249,8 +252,8 @@ impl P384PublicKey {
     }
 }
 
-impl std::fmt::Debug for P384PublicKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for P384PublicKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let bytes = self.to_sec1_bytes_compressed();
         write!(f, "P384PublicKey({}...)", &hex::encode(&bytes[..8]))
     }
@@ -281,8 +284,8 @@ impl P384SharedSecret {
     }
 }
 
-impl std::fmt::Debug for P384SharedSecret {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for P384SharedSecret {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "P384SharedSecret([REDACTED])")
     }
 }
@@ -359,8 +362,8 @@ impl Secp256k1SecretKey {
     }
 }
 
-impl std::fmt::Debug for Secp256k1SecretKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Secp256k1SecretKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Secp256k1SecretKey([REDACTED])")
     }
 }
@@ -406,8 +409,8 @@ impl Secp256k1PublicKey {
     }
 }
 
-impl std::fmt::Debug for Secp256k1PublicKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Secp256k1PublicKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let bytes = self.to_sec1_bytes_compressed();
         write!(f, "Secp256k1PublicKey({}...)", &hex::encode(&bytes[..8]))
     }
@@ -438,8 +441,8 @@ impl Secp256k1SharedSecret {
     }
 }
 
-impl std::fmt::Debug for Secp256k1SharedSecret {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Secp256k1SharedSecret {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Secp256k1SharedSecret([REDACTED])")
     }
 }

@@ -12,7 +12,10 @@ use crate::traits::KeyDerivation;
 use arcanum_core::error::{Error, Result};
 use hkdf::Hkdf as HkdfInner;
 use sha2::{Sha256, Sha384, Sha512};
-use std::marker::PhantomData;
+use core::marker::PhantomData;
+
+#[cfg(not(feature = "std"))]
+use alloc::{vec, vec::Vec};
 
 /// HKDF key derivation function.
 ///

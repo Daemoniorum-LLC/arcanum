@@ -42,9 +42,13 @@
 //! - Ed25519 provides deterministic signatures (no additional randomness needed)
 //! - ECDSA requires secure random nonces (use deterministic RFC 6979 variant)
 
+#![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]
 #![allow(unused_imports, dead_code, clippy::needless_borrows_for_generic_args)]
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
 
 #[cfg(feature = "ed25519")]
 pub mod ed25519;

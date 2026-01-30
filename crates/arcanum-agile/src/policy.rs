@@ -2,6 +2,9 @@
 //!
 //! Declarative restrictions on algorithm usage.
 
+#[cfg(not(feature = "std"))]
+use alloc::{format, vec, vec::Vec};
+
 use crate::registry::{AlgorithmId, AlgorithmRegistry, SecurityLevel};
 use serde::{Deserialize, Serialize};
 

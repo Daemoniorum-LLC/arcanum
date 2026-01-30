@@ -9,6 +9,9 @@
 //! - Logarithmic proof size O(log n)
 //! - Aggregatable: multiple proofs can be batched
 
+#[cfg(not(feature = "std"))]
+use alloc::{format, string::{String, ToString}, vec::Vec};
+
 use arcanum_core::error::{Error, Result};
 use bulletproofs::{BulletproofGens, PedersenGens, RangeProof as BpRangeProof};
 use merlin::Transcript;
@@ -158,8 +161,8 @@ impl RangeProof {
     }
 }
 
-impl std::fmt::Debug for RangeProof {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for RangeProof {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "RangeProof({} bytes)", self.to_bytes().len())
     }
 }
@@ -257,8 +260,8 @@ impl RangeProofBatch {
     }
 }
 
-impl std::fmt::Debug for RangeProofBatch {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for RangeProofBatch {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "RangeProofBatch({} values)", self.commitments.len())
     }
 }

@@ -35,6 +35,9 @@ use rand::rngs::OsRng;
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec, vec::Vec};
+
 /// X25519 secret key.
 #[derive(ZeroizeOnDrop)]
 pub struct X25519SecretKey {
@@ -93,8 +96,8 @@ impl X25519SecretKey {
     }
 }
 
-impl std::fmt::Debug for X25519SecretKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for X25519SecretKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "X25519SecretKey([REDACTED])")
     }
 }
@@ -127,8 +130,8 @@ impl EphemeralX25519Secret {
     }
 }
 
-impl std::fmt::Debug for EphemeralX25519Secret {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for EphemeralX25519Secret {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "EphemeralX25519Secret([REDACTED])")
     }
 }
@@ -171,8 +174,8 @@ impl X25519PublicKey {
     }
 }
 
-impl std::fmt::Debug for X25519PublicKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for X25519PublicKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "X25519PublicKey({}...)",
@@ -181,8 +184,8 @@ impl std::fmt::Debug for X25519PublicKey {
     }
 }
 
-impl std::fmt::Display for X25519PublicKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for X25519PublicKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.to_hex())
     }
 }
@@ -242,8 +245,8 @@ impl PartialEq for X25519SharedSecret {
 
 impl Eq for X25519SharedSecret {}
 
-impl std::fmt::Debug for X25519SharedSecret {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for X25519SharedSecret {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "X25519SharedSecret([REDACTED])")
     }
 }

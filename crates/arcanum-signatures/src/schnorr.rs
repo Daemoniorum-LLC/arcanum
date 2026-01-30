@@ -7,6 +7,9 @@
 //! - Linear (enables signature aggregation)
 //! - Simpler, more efficient
 
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec::Vec};
+
 use crate::traits;
 use arcanum_core::error::{Error, Result};
 use k256::schnorr::{
@@ -67,8 +70,8 @@ impl traits::SigningKey for SchnorrSigningKey {
     }
 }
 
-impl std::fmt::Debug for SchnorrSigningKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for SchnorrSigningKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "SchnorrSigningKey([REDACTED])")
     }
 }
@@ -91,7 +94,7 @@ mod schnorr_verifying_key_serde {
     pub fn serialize<S>(
         key: &SchnorrVerifyingKeyInner,
         serializer: S,
-    ) -> std::result::Result<S::Ok, S::Error>
+    ) -> core::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -105,7 +108,7 @@ mod schnorr_verifying_key_serde {
 
     pub fn deserialize<'de, D>(
         deserializer: D,
-    ) -> std::result::Result<SchnorrVerifyingKeyInner, D::Error>
+    ) -> core::result::Result<SchnorrVerifyingKeyInner, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -148,8 +151,8 @@ impl traits::VerifyingKey for SchnorrVerifyingKey {
     }
 }
 
-impl std::fmt::Debug for SchnorrVerifyingKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for SchnorrVerifyingKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "SchnorrVerifyingKey({})",
@@ -158,8 +161,8 @@ impl std::fmt::Debug for SchnorrVerifyingKey {
     }
 }
 
-impl std::fmt::Display for SchnorrVerifyingKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for SchnorrVerifyingKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", hex::encode(self.inner.to_bytes()))
     }
 }
@@ -182,7 +185,7 @@ mod schnorr_signature_serde {
     pub fn serialize<S>(
         sig: &SchnorrSignatureInner,
         serializer: S,
-    ) -> std::result::Result<S::Ok, S::Error>
+    ) -> core::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -196,7 +199,7 @@ mod schnorr_signature_serde {
 
     pub fn deserialize<'de, D>(
         deserializer: D,
-    ) -> std::result::Result<SchnorrSignatureInner, D::Error>
+    ) -> core::result::Result<SchnorrSignatureInner, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -224,8 +227,8 @@ impl traits::Signature for SchnorrSignature {
     }
 }
 
-impl std::fmt::Debug for SchnorrSignature {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for SchnorrSignature {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "SchnorrSignature({})",

@@ -25,6 +25,9 @@
 //! 2. Each participant adds all received contributions to their existing share
 //! 3. The combined effect is equivalent to adding shares of a single zero-polynomial
 
+#[cfg(not(feature = "std"))]
+use alloc::{vec, vec::Vec};
+
 use crate::error::{Result, ThresholdError};
 use crate::shamir::Share;
 use rand::RngCore;

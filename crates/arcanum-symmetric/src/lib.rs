@@ -107,9 +107,13 @@
 //! 5. **Validate decryption errors** - authentication failures indicate tampering
 //! 6. **Use AAD appropriately** - bind ciphertext to context (user ID, timestamp, etc.)
 
+#![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]
 #![allow(unused_imports)]
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
 
 #[cfg(feature = "aes")]
 pub mod aes_ciphers;

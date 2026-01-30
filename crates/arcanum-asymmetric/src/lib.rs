@@ -45,6 +45,7 @@
 //! let plaintext = private_key.decrypt_oaep(&ciphertext)?;
 //! ```
 
+#![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]
 #![allow(
@@ -52,6 +53,10 @@
     unused_variables,
     clippy::needless_borrows_for_generic_args
 )]
+
+#[cfg(not(feature = "std"))]
+#[macro_use]
+extern crate alloc;
 
 mod traits;
 

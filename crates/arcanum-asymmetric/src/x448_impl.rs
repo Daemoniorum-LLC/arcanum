@@ -20,6 +20,9 @@ use arcanum_core::error::{Error, Result};
 use rand::RngCore;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec, vec::Vec};
+
 /// X448 secret key.
 #[derive(ZeroizeOnDrop)]
 pub struct X448SecretKey {
@@ -67,8 +70,8 @@ impl X448SecretKey {
     }
 }
 
-impl std::fmt::Debug for X448SecretKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for X448SecretKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "X448SecretKey([REDACTED])")
     }
 }
@@ -122,14 +125,14 @@ impl X448PublicKey {
     }
 }
 
-impl std::fmt::Debug for X448PublicKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for X448PublicKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "X448PublicKey({}...)", &hex::encode(&self.bytes[..8]))
     }
 }
 
-impl std::fmt::Display for X448PublicKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for X448PublicKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.to_hex())
     }
 }
@@ -188,8 +191,8 @@ impl PartialEq for X448SharedSecret {
 
 impl Eq for X448SharedSecret {}
 
-impl std::fmt::Debug for X448SharedSecret {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for X448SharedSecret {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "X448SharedSecret([REDACTED])")
     }
 }

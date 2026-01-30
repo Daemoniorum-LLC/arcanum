@@ -2,6 +2,9 @@
 //!
 //! Central registry of all supported algorithms with metadata.
 
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+
 use serde::{Deserialize, Serialize};
 
 /// Unique identifier for a cryptographic algorithm.
