@@ -133,20 +133,100 @@ SLH-DSA provides conservative, stateless signatures based on hash functions. The
 
 | Variant | Keygen | Sign | Verify | Signature Size |
 |---------|--------|------|--------|----------------|
-| SLH-DSA-SHA2-128f | 348 µs | **15.6 ms** | 491 µs | 17,088 bytes |
-| SLH-DSA-SHA2-128s | 21.9 ms | **333 ms** | 158 µs | 7,856 bytes |
+| SLH-DSA-SHA2-128f | 561 µs | **21.8 ms** | 703 µs | 17,088 bytes |
+| SLH-DSA-SHA2-128s | 34.6 ms | **468 ms** | 248 µs | 7,856 bytes |
+| SLH-DSA-SHA2-192f | 1.26 ms | **53.0 ms** | 1.61 ms | 35,664 bytes |
+| SLH-DSA-SHA2-192s | 72.6 ms | **1.17 s** | 547 µs | 16,224 bytes |
+| SLH-DSA-SHA2-256f | 3.00 ms | **107.7 ms** | 1.59 ms | 49,856 bytes |
+| SLH-DSA-SHA2-256s | 46.1 ms | **928 ms** | 759 µs | 29,792 bytes |
 
-**Note**: SLH-DSA signing is inherently slow due to its hash-based security model. The "-f" (fast) variant is recommended for most use cases. The "-s" (small) variant is useful when signature size is critical and signing latency is acceptable.
+**Note**: SLH-DSA signing is inherently slow due to its hash-based security model. The "-f" (fast) variant is recommended for most use cases. The "-s" (small) variant is useful when signature size is critical and signing latency is acceptable. Signing cost scales roughly 2-2.5x per security level increase.
+
+### ML-DSA-Native (FIPS 204) - Native Implementation
+
+Arcanum's native ML-DSA implementation uses SHAKE primitives from arcanum-primitives:
+
+| Security Level | Keygen | Sign | Verify | Sign+Verify Cycle |
+|---------------|--------|------|--------|-------------------|
+| ML-DSA-44-Native | 134 µs | 423 µs | 112 µs | 500 µs |
+| ML-DSA-65-Native | 228 µs | 347 µs | 182 µs | 542 µs |
+| ML-DSA-87-Native | 336 µs | 953 µs | 297 µs | 1.23 ms |
+
+### Hybrid KEM - X25519 + ML-KEM-768
+
+Combining classical ECDH with post-quantum KEM for defense-in-depth:
+
+| Operation | X25519-ML-KEM-768 | ML-KEM-768 Only | Overhead |
+|-----------|-------------------|-----------------|----------|
+| Encapsulate | 172 µs | 78 µs | ~2.2x |
+
+The hybrid scheme provides dual protection at roughly double the cost of ML-KEM alone.
 
 ### PQC Algorithm Selection Guide
 
 | Use Case | Recommendation | Rationale |
 |----------|----------------|-----------|
 | Key exchange | ML-KEM-768 | Balanced security and performance |
+| Quantum-safe key exchange | X25519-ML-KEM-768 | Defense-in-depth, classical + PQC |
 | Frequent signing | ML-DSA-65 | Fast signing, reasonable key sizes |
 | High-security signing | ML-DSA-87 | NIST Level 5 security |
+| Native signing (no deps) | ML-DSA-65-Native | 347 µs sign, no external crate |
 | Signature archival | SLH-DSA-128s | Conservative, minimal assumptions |
 | Real-time signing | SLH-DSA-128f | Faster than -s variant |
+| Max security hash-based | SLH-DSA-256f | 256-bit security, 108 ms sign |
+
+---
+
+## Comparative Benchmarks: RustCrypto vs ring
+
+These benchmarks compare the two primary backend ecosystems at 4KB message size.
+
+### AES-256-GCM (4KB)
+
+| Implementation | Encrypt | Decrypt |
+|----------------|---------|---------|
+| RustCrypto | 3.35 µs (1.14 GiB/s) | 3.07 µs (1.24 GiB/s) |
+| ring | 842 ns (4.53 GiB/s) | 875 ns (4.36 GiB/s) |
+
+ring's AES-256-GCM uses BoringSSL assembly with AES-NI, achieving **~4x** higher throughput than RustCrypto's pure Rust at 4KB.
+
+### ChaCha20-Poly1305 (4KB)
+
+| Implementation | Encrypt | Decrypt |
+|----------------|---------|---------|
+| RustCrypto | 4.88 µs (801 MiB/s) | 4.77 µs (819 MiB/s) |
+| ring | 2.41 µs (1.59 GiB/s) | 2.42 µs (1.57 GiB/s) |
+
+ring achieves **~2x** throughput over RustCrypto for ChaCha20-Poly1305 at 4KB.
+
+### Ed25519 (1KB messages)
+
+| Implementation | Keygen | Sign | Verify |
+|----------------|--------|------|--------|
+| RustCrypto | 23.3 µs | 22.2 µs | 41.0 µs |
+| ring | 68.5 µs | 27.2 µs | 44.9 µs |
+
+RustCrypto Ed25519 is faster for keygen (**2.9x**) and sign (**1.2x**). Verify is comparable.
+
+### SHA-256 (4KB)
+
+| Implementation | Throughput |
+|----------------|------------|
+| RustCrypto | 1.43 GiB/s |
+| ring | 1.40 GiB/s |
+
+Near parity at 4KB. Both leverage SHA-NI hardware instructions.
+
+### Algorithm Comparison at 4KB
+
+| Algorithm | Throughput |
+|-----------|------------|
+| BLAKE3 | **3.49 GiB/s** |
+| ring AES-256-GCM | 4.70 GiB/s |
+| RustCrypto SHA-256 | 1.43 GiB/s |
+| ring ChaCha20-Poly1305 | 1.64 GiB/s |
+| RustCrypto ChaCha20-Poly1305 | 812 MiB/s |
+| RustCrypto AES-256-GCM | 1.14 GiB/s |
 
 ---
 
