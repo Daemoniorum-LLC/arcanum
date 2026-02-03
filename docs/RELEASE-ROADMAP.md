@@ -2,8 +2,9 @@
 
 **Version:** 1.0.0-rc1
 **Created:** 2026-01-20
+**Updated:** 2026-02-03
 **Methodology:** Test-Driven Development (TDD)
-**Status:** Draft
+**Status:** Phase 1 Complete — Phase 2 In Progress
 
 ---
 
@@ -24,11 +25,13 @@ Issues are organized into phases with clear dependencies. Each phase must be com
 **Timeline:** Immediate (blocks release)
 **Dependencies:** None
 
-### 1.1 Timing Attack in X25519 Low-Order Point Check
+### 1.1 ~~Timing Attack in X25519 Low-Order Point Check~~ ✅ COMPLETE
 
 **Issue:** `X25519SharedSecret::is_low_order()` uses non-constant-time comparison
 
 **Location:** `crates/arcanum-asymmetric/src/x25519.rs:209`
+
+**Resolution:** Uses `subtle::ConstantTimeEq` for constant-time comparison.
 
 #### TDD Steps
 
@@ -113,11 +116,16 @@ impl X25519SharedSecret {
 
 ---
 
-### 1.2 Panic on Untrusted Input - Poly1305
+### 1.2 ~~Panic on Untrusted Input - Poly1305~~ ✅ COMPLETE
 
 **Issue:** Multiple `.unwrap()` calls on user-controlled slice conversions
 
-**Location:** `crates/arcanum-primitives/src/poly1305.rs:87-88, 259-260, 297, 301, 334`
+**Location:** `crates/arcanum-primitives/src/poly1305.rs`, `poly1305_simd.rs`
+
+**Resolution:** Replaced all 77 `.try_into().unwrap()` calls in poly1305.rs (9) and
+poly1305_simd.rs (68) with `split_at` + explicit array construction, `chunks_exact`,
+and documented `.expect()` patterns. Added 4 robustness tests (all sizes 0-100,
+unaligned multi-update, 1MB input, single-byte boundary cross). Commit `4bf97d0`.
 
 #### TDD Steps
 
@@ -211,11 +219,15 @@ pub fn update(&mut self, data: &[u8]) {
 
 ---
 
-### 1.3 Panic on Untrusted Input - ChaCha20Poly1305
+### 1.3 ~~Panic on Untrusted Input - ChaCha20Poly1305~~ ✅ COMPLETE
 
 **Issue:** `.unwrap()` calls in AEAD decryption path
 
-**Location:** `crates/arcanum-primitives/src/chacha20poly1305.rs:250, 307-308`
+**Location:** `crates/arcanum-primitives/src/chacha20poly1305.rs`
+
+**Resolution:** Replaced 3 production `.unwrap()` calls with `.expect()` (documented
+invariant) and `split_at` + `copy_from_slice`. Added 5 robustness tests (malformed
+short input, garbage data, all-zero tag, boundary sizes, XChaCha malformed). Commit `4bf97d0`.
 
 #### TDD Steps
 
@@ -330,11 +342,13 @@ pub fn open(
 
 ---
 
-### 1.4 Undefined Feature Flag Usage
+### 1.4 ~~Undefined Feature Flag Usage~~ ✅ COMPLETE
 
 **Issue:** `ethereum` feature used but not defined in Cargo.toml
 
 **Location:** `crates/arcanum-asymmetric/src/ecdh.rs:398`
+
+**Resolution:** Feature defined in `arcanum-asymmetric/Cargo.toml` with `sha3` dependency.
 
 #### TDD Steps
 
@@ -563,11 +577,13 @@ done
 
 ---
 
-### 2.3 Remove Duplicate Error Files
+### 2.3 ~~Remove Duplicate Error Files~~ ✅ COMPLETE
 
 **Issue:** Both `error.rs` and `errors.rs` exist in arcanum-threshold
 
 **Location:** `crates/arcanum-threshold/src/`
+
+**Resolution:** `errors.rs` removed; only `error.rs` remains.
 
 #### TDD Steps
 
@@ -744,73 +760,98 @@ impl MlKem512 {
 **Timeline:** Before stable release
 **Dependencies:** Phase 2 complete
 
-### 3.1 Remove Dead CUDA Code
+### 3.1 Integrate CUDA BLAKE3 Build System
 
-**Issue:** 801 lines of CUDA code never compiled
+**Issue:** CUDA BLAKE3 batch hashing code exists (801 lines kernel + 298 lines FFI) but
+cannot be compiled or linked — build.rs expects a pre-built `libblake3_cuda.so` that
+doesn't exist and there is no automated nvcc invocation.
 
-**Location:** `crates/arcanum-primitives/src/blake3_cuda.cu`, `blake3_cuda_ffi.rs`
+**Location:** `crates/arcanum-primitives/src/blake3_cuda.cu`, `blake3_cuda_ffi.rs`, `build.rs`
+
+**Current state:** Rust FFI wrapper and CUDA kernel are complete and correct. Feature
+gate (`cuda = ["std"]`) and module gating (`#[cfg(feature = "cuda")]`) are in place.
+Benchmarks exist in `primitives_bench.rs`. The only gap is build automation.
 
 #### TDD Steps
 
-**RED - Verify CUDA is not used:**
+**RED - Write integration tests:**
 ```rust
-// tests/no_cuda_dependency.rs
-
-#[test]
-fn test_blake3_works_without_cuda() {
-    use arcanum_primitives::blake3::hash;
-
-    let data = b"test data for BLAKE3";
-    let hash = hash(data);
-
-    // Known answer test
-    assert_eq!(
-        hex::encode(&hash),
-        "expected_blake3_hash_here"
-    );
-}
-
-#[test]
-fn test_no_cuda_symbols_exported() {
-    // Check that no CUDA-related symbols are in the public API
-    // This is a compile-time check - if blake3_cuda is removed,
-    // any code using it will fail to compile
-}
-```
-
-**GREEN - Remove or feature-gate:**
-
-Option A: Remove entirely (recommended if CUDA not needed):
-```bash
-git rm crates/arcanum-primitives/src/blake3_cuda.cu
-git rm crates/arcanum-primitives/src/blake3_cuda_ffi.rs
-```
-
-Option B: Feature-gate for future use:
-```toml
-# crates/arcanum-primitives/Cargo.toml
-
-[features]
-cuda = ["cc"]  # Enables CUDA acceleration
-
-[build-dependencies]
-cc = { version = "1.0", optional = true }
-```
-
-```rust
-// crates/arcanum-primitives/src/lib.rs
+// crates/arcanum-primitives/tests/cuda_integration.rs
 
 #[cfg(feature = "cuda")]
-mod blake3_cuda_ffi;
+mod tests {
+    use arcanum_primitives::blake3_cuda_ffi::CudaHasher;
+    use arcanum_primitives::blake3;
+
+    #[test]
+    fn test_cuda_matches_cpu_single() {
+        let hasher = CudaHasher::new(1024 * 1024, 64)
+            .expect("CUDA init failed — is GPU available?");
+        let msg = b"test message for CUDA BLAKE3";
+        let cpu_hash = blake3::hash(msg);
+        let gpu_hashes = hasher.hash_batch(&[msg.as_ref()]).unwrap();
+        assert_eq!(gpu_hashes[0], cpu_hash);
+    }
+
+    #[test]
+    fn test_cuda_matches_cpu_batch() {
+        let hasher = CudaHasher::new(1024 * 1024, 1024).unwrap();
+        let messages: Vec<Vec<u8>> = (0..100)
+            .map(|i| vec![i as u8; 256])
+            .collect();
+        let refs: Vec<&[u8]> = messages.iter().map(|m| m.as_slice()).collect();
+
+        let gpu_hashes = hasher.hash_batch(&refs).unwrap();
+        for (i, msg) in messages.iter().enumerate() {
+            let cpu_hash = blake3::hash(msg);
+            assert_eq!(gpu_hashes[i], cpu_hash, "mismatch at message {}", i);
+        }
+    }
+}
 ```
+
+**GREEN - Automate build.rs nvcc invocation:**
+```rust
+// crates/arcanum-primitives/build.rs (cuda section)
+
+#[cfg(feature = "cuda")]
+fn build_cuda() {
+    use std::process::Command;
+    let out_dir = std::env::var("OUT_DIR").unwrap();
+    let src = "src/blake3_cuda.cu";
+
+    // Detect compute capability (default sm_75 for broad Turing+ support)
+    let arch = std::env::var("CUDA_ARCH").unwrap_or_else(|_| "sm_75".to_string());
+
+    let status = Command::new("nvcc")
+        .args(["-O3", &format!("-arch={}", arch), "--shared",
+               "--compiler-options", "-fPIC",
+               src, "-o", &format!("{}/libblake3_cuda.so", out_dir)])
+        .status()
+        .expect("nvcc not found — install CUDA toolkit");
+
+    assert!(status.success(), "nvcc compilation failed");
+    println!("cargo:rustc-link-search=native={}", out_dir);
+    println!("cargo:rustc-link-lib=dylib=blake3_cuda");
+    println!("cargo:rerun-if-changed={}", src);
+}
+```
+
+**REFACTOR:**
+- Support `CUDA_ARCH` env var for architecture override (sm_75, sm_86, sm_89, sm_90)
+- Emit `cargo:warning` if nvcc not found instead of hard fail (graceful degradation)
+- Add CI workflow for GPU runners (self-hosted) with `--features cuda`
+- Document installation: CUDA toolkit, supported GPUs, environment variables
 
 ---
 
-### 3.2 Clean Up arcanum-platform Directory
+### 3.2 ~~Clean Up arcanum-platform Directory~~ ✅ COMPLETE
 
 **Issue:** Separate workspace with potentially stale code
 
 **Location:** `/home/user/arcanum/arcanum-platform/`
+
+**Resolution:** Directory removed.
 
 #### TDD Steps
 
@@ -844,11 +885,17 @@ echo "archive/" >> .gitignore
 
 ---
 
-### 3.3 Add no_std Gates
+### 3.3 ~~Add no_std Gates~~ ✅ COMPLETE
 
 **Issue:** Crates claim no_std support but lack proper attributes
 
 **Location:** All library crates
+
+**Resolution:** Full no_std support implemented across all 12 library crates.
+arcanum-core underwent deep restructuring (SPEC-CORE-NOSTD-001, TDD-CORE-NOSTD-001):
+24 deps categorized, 15 made optional behind feature flags, 9 source files gated.
+13 feature combinations compile clean, 10 test files added, zero clippy warnings.
+Commits `49114e3`, `15348a3`.
 
 #### TDD Steps
 
@@ -993,22 +1040,22 @@ proptest! {
 
 ## Summary Checklist
 
-### Phase 1: Critical Security (MUST before any release)
-- [ ] Fix timing attack in X25519 is_low_order()
-- [ ] Replace unwrap() in Poly1305 user input paths
-- [ ] Replace unwrap() in ChaCha20Poly1305 AEAD paths
-- [ ] Add `ethereum` feature to Cargo.toml
+### Phase 1: Critical Security (MUST before any release) — ✅ COMPLETE
+- [x] Fix timing attack in X25519 is_low_order()
+- [x] Replace unwrap() in Poly1305 user input paths
+- [x] Replace unwrap() in ChaCha20Poly1305 AEAD paths
+- [x] Add `ethereum` feature to Cargo.toml
 
-### Phase 2: High Priority (MUST before stable release)
+### Phase 2: High Priority (MUST before stable release) — IN PROGRESS
 - [ ] Handle mutex poisoning in random.rs
 - [ ] Add #[must_use] to Result-returning functions
-- [ ] Remove duplicate errors.rs in arcanum-threshold
+- [x] Remove duplicate errors.rs in arcanum-threshold
 - [ ] Add FIPS 203/204/205 test vectors
 
-### Phase 3: Code Quality (SHOULD before stable release)
-- [ ] Remove or feature-gate CUDA code
-- [ ] Archive/remove arcanum-platform directory
-- [ ] Add no_std gates to all crates
+### Phase 3: Code Quality (SHOULD before stable release) — IN PROGRESS
+- [ ] Integrate CUDA BLAKE3 build system (was: remove CUDA code)
+- [x] Archive/remove arcanum-platform directory
+- [x] Add no_std gates to all crates
 - [ ] Remove dead feature flags
 
 ### Phase 4: Test Coverage (ONGOING)
