@@ -387,4 +387,196 @@ mod tests {
         assert_eq!(hrp, "bc");
         assert_eq!(decoded, data);
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // ERROR PATH TESTS
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    #[test]
+    fn test_hex_invalid_odd_length() {
+        assert!(Hex::decode("abc").is_err()); // Odd length
+    }
+
+    #[test]
+    fn test_hex_invalid_characters() {
+        assert!(Hex::decode("xyz123").is_err()); // Non-hex chars
+        assert!(Hex::decode("deadbeefgg").is_err());
+    }
+
+    #[test]
+    fn test_hex_decode_array_wrong_size() {
+        // "deadbeef" decodes to 4 bytes; asking for 8 should fail
+        assert!(Hex::decode_array::<8>("deadbeef").is_err());
+        // Empty string decodes to 0 bytes; asking for 4 should fail
+        assert!(Hex::decode_array::<4>("").is_err());
+    }
+
+    #[test]
+    fn test_hex_is_valid() {
+        assert!(Hex::is_valid("deadbeef"));
+        assert!(Hex::is_valid("DEADBEEF"));
+        assert!(Hex::is_valid("0123456789abcdefABCDEF"));
+        assert!(!Hex::is_valid("abc")); // Odd length
+        assert!(!Hex::is_valid("xyz1"));
+        assert!(!Hex::is_valid("dead beef")); // Space
+    }
+
+    #[test]
+    fn test_base64_invalid() {
+        assert!(Base64::decode("not valid base64!!!").is_err());
+        assert!(Base64::decode("====").is_err());
+    }
+
+    #[test]
+    fn test_base64_url_invalid() {
+        assert!(Base64::decode_url("not+valid/base64").is_err());
+    }
+
+    #[test]
+    fn test_base32_invalid() {
+        assert!(Base32::decode("01234").is_err()); // 0 and 1 are not valid base32
+        assert!(Base32::decode("!!!").is_err());
+    }
+
+    #[test]
+    fn test_base58_invalid_characters() {
+        // 0 (zero), O, I, l are excluded from Base58
+        assert!(Base58::decode("0OIl").is_err());
+    }
+
+    #[test]
+    fn test_base58_check_too_short() {
+        // A single base58 character decodes to < 4 bytes, so checksum fails
+        assert!(Base58::decode_check("1").is_err());
+    }
+
+    #[test]
+    fn test_base58_check_invalid_checksum() {
+        // Encode something, then modify the encoded string
+        let encoded = Base58::encode_check(b"test data");
+        // Flip last character to corrupt checksum
+        let mut chars: Vec<char> = encoded.chars().collect();
+        let last = chars.len() - 1;
+        chars[last] = if chars[last] == 'A' { 'B' } else { 'A' };
+        let corrupted: String = chars.into_iter().collect();
+        assert!(Base58::decode_check(&corrupted).is_err());
+    }
+
+    #[test]
+    fn test_bech32_invalid_hrp() {
+        // HRP with invalid characters
+        assert!(Bech32::encode(" ", b"data").is_err());
+    }
+
+    #[test]
+    fn test_bech32_decode_invalid() {
+        assert!(Bech32::decode("not_a_bech32_string").is_err());
+        assert!(Bech32::decode("").is_err());
+    }
+
+    #[test]
+    fn test_pem_missing_begin() {
+        let bad_pem = "some random data\n-----END PRIVATE KEY-----\n";
+        assert!(Pem::decode(bad_pem).is_err());
+    }
+
+    #[test]
+    fn test_pem_missing_end() {
+        let bad_pem = "-----BEGIN PRIVATE KEY-----\naGVsbG8=\n";
+        assert!(Pem::decode(bad_pem).is_err());
+    }
+
+    #[test]
+    fn test_pem_malformed_begin() {
+        let bad_pem = "-----BEGIN \naGVsbG8=\n-----END -----\n";
+        // This may or may not parse depending on implementation
+        // The key point is it shouldn't panic
+        let _ = Pem::decode(bad_pem);
+    }
+
+    #[test]
+    fn test_multibase_decode_invalid() {
+        // Empty string
+        assert!(Multibase::decode("").is_err());
+        // Invalid base code
+        assert!(Multibase::decode("!invaliddata").is_err());
+    }
+
+    #[test]
+    fn test_multibase_encode_invalid_base() {
+        assert!(Multibase::encode_with_base('!', b"data").is_err());
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // PROPERTY-BASED TESTS
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    mod proptests {
+        use super::*;
+        use proptest::prelude::*;
+
+        proptest! {
+            #[test]
+            fn prop_hex_roundtrip(data in proptest::collection::vec(any::<u8>(), 0..512)) {
+                let encoded = Hex::encode(&data);
+                let decoded = Hex::decode(&encoded).unwrap();
+                prop_assert_eq!(decoded, data);
+            }
+
+            #[test]
+            fn prop_hex_upper_roundtrip(data in proptest::collection::vec(any::<u8>(), 0..512)) {
+                let encoded = Hex::encode_upper(&data);
+                let decoded = Hex::decode(&encoded).unwrap();
+                prop_assert_eq!(decoded, data);
+            }
+
+            #[test]
+            fn prop_base64_roundtrip(data in proptest::collection::vec(any::<u8>(), 0..512)) {
+                let encoded = Base64::encode(&data);
+                let decoded = Base64::decode(&encoded).unwrap();
+                prop_assert_eq!(decoded, data);
+            }
+
+            #[test]
+            fn prop_base64_url_roundtrip(data in proptest::collection::vec(any::<u8>(), 0..512)) {
+                let encoded = Base64::encode_url(&data);
+                let decoded = Base64::decode_url(&encoded).unwrap();
+                prop_assert_eq!(decoded, data);
+            }
+
+            #[test]
+            fn prop_base58_roundtrip(data in proptest::collection::vec(any::<u8>(), 0..256)) {
+                let encoded = Base58::encode(&data);
+                let decoded = Base58::decode(&encoded).unwrap();
+                prop_assert_eq!(decoded, data);
+            }
+
+            #[test]
+            fn prop_base58_check_roundtrip(data in proptest::collection::vec(any::<u8>(), 0..256)) {
+                let encoded = Base58::encode_check(&data);
+                let decoded = Base58::decode_check(&encoded).unwrap();
+                prop_assert_eq!(decoded, data);
+            }
+
+            #[test]
+            fn prop_hex_encoded_length(data in proptest::collection::vec(any::<u8>(), 0..512)) {
+                let encoded = Hex::encode(&data);
+                prop_assert_eq!(encoded.len(), data.len() * 2);
+            }
+
+            #[test]
+            fn prop_hex_is_valid_after_encode(data in proptest::collection::vec(any::<u8>(), 0..512)) {
+                let encoded = Hex::encode(&data);
+                prop_assert!(Hex::is_valid(&encoded));
+            }
+
+            #[test]
+            fn prop_pem_roundtrip(data in proptest::collection::vec(any::<u8>(), 0..512)) {
+                let pem = Pem::encode("TEST KEY", &data);
+                let (label, decoded) = Pem::decode(&pem).unwrap();
+                prop_assert_eq!(label, "TEST KEY");
+                prop_assert_eq!(decoded, data);
+            }
+        }
+    }
 }

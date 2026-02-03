@@ -377,4 +377,134 @@ mod tests {
         let shares = ShamirScheme::split(secret, 3, 5).unwrap();
         assert!(ShamirScheme::verify_shares(&shares, 3));
     }
+
+    #[test]
+    fn test_split_empty_secret() {
+        let result = ShamirScheme::split(b"", 2, 3);
+        assert!(matches!(result, Err(ThresholdError::InvalidShareFormat)));
+    }
+
+    #[test]
+    fn test_split_threshold_zero() {
+        let result = ShamirScheme::split(b"test", 0, 5);
+        assert!(matches!(
+            result,
+            Err(ThresholdError::InvalidThreshold {
+                threshold: 0,
+                total: 5
+            })
+        ));
+    }
+
+    #[test]
+    fn test_split_threshold_exceeds_total() {
+        let result = ShamirScheme::split(b"test", 6, 5);
+        assert!(matches!(
+            result,
+            Err(ThresholdError::InvalidThreshold {
+                threshold: 6,
+                total: 5
+            })
+        ));
+    }
+
+    #[test]
+    fn test_split_total_exceeds_255() {
+        let result = ShamirScheme::split(b"test", 2, 256);
+        assert!(matches!(
+            result,
+            Err(ThresholdError::InvalidThreshold { .. })
+        ));
+    }
+
+    #[test]
+    fn test_combine_empty_shares() {
+        let result = ShamirScheme::combine(&[]);
+        assert!(matches!(
+            result,
+            Err(ThresholdError::InsufficientShares {
+                required: 1,
+                provided: 0
+            })
+        ));
+    }
+
+    #[test]
+    fn test_combine_mismatched_share_lengths() {
+        let share1 = Share::new(1, vec![1, 2, 3]);
+        let share2 = Share::new(2, vec![4, 5]);
+        let result = ShamirScheme::combine(&[share1, share2]);
+        assert!(matches!(result, Err(ThresholdError::InvalidShareFormat)));
+    }
+
+    #[test]
+    fn test_share_from_empty_bytes() {
+        let result = Share::from_bytes(&[]);
+        assert!(matches!(result, Err(ThresholdError::InvalidShareFormat)));
+    }
+
+    #[test]
+    fn test_share_from_single_byte() {
+        let share = Share::from_bytes(&[42]).unwrap();
+        assert_eq!(share.index(), 42);
+        assert!(share.value().is_empty());
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // PROPERTY-BASED TESTS
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    mod proptests {
+        use super::*;
+        use proptest::prelude::*;
+
+        proptest! {
+            /// Property: split then combine recovers the original secret
+            #[test]
+            fn prop_split_combine_roundtrip(
+                secret in proptest::collection::vec(any::<u8>(), 1..128),
+                threshold in 1usize..10,
+            ) {
+                let total = threshold + (threshold / 2).max(1); // total > threshold
+                let total = total.min(255);
+                prop_assume!(threshold <= total);
+
+                let shares = ShamirScheme::split(&secret, threshold, total).unwrap();
+                prop_assert_eq!(shares.len(), total);
+
+                // Combine with exactly threshold shares
+                let recovered = ShamirScheme::combine(&shares[..threshold]).unwrap();
+                prop_assert_eq!(recovered, secret);
+            }
+
+            /// Property: all subsets of threshold shares recover the same secret
+            #[test]
+            fn prop_any_threshold_subset_works(
+                secret in proptest::collection::vec(any::<u8>(), 1..64),
+            ) {
+                let threshold = 3;
+                let total = 5;
+                let shares = ShamirScheme::split(&secret, threshold, total).unwrap();
+
+                // Try first and last subset of threshold shares
+                let r1 = ShamirScheme::combine(&shares[..threshold]).unwrap();
+                let r2 = ShamirScheme::combine(&shares[total - threshold..]).unwrap();
+                prop_assert_eq!(&r1, &secret);
+                prop_assert_eq!(&r2, &secret);
+            }
+
+            /// Property: share serialization roundtrip preserves data
+            #[test]
+            fn prop_share_serialization_roundtrip(
+                index in 0u8..=255,
+                value in proptest::collection::vec(any::<u8>(), 0..128),
+            ) {
+                let share = Share::new(index, value.clone());
+                let bytes = share.to_bytes();
+                let restored = Share::from_bytes(&bytes).unwrap();
+                prop_assert_eq!(restored.index(), index);
+                prop_assert_eq!(restored.value(), value.as_slice());
+            }
+        }
+    }
 }

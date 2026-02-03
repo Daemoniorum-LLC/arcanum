@@ -4,7 +4,7 @@
 **Created:** 2026-01-20
 **Updated:** 2026-02-03
 **Methodology:** Test-Driven Development (TDD)
-**Status:** Phase 1 Complete — Phase 2 Complete — Phase 3 Complete — Phase 4 Ongoing
+**Status:** Phase 1 Complete — Phase 2 Complete — Phase 3 Complete — Phase 4 In Progress (4.1–4.3 Complete)
 
 ---
 
@@ -1033,47 +1033,38 @@ blake3 = ["dep:blake3"]
 **Timeline:** Post-release (ongoing)
 **Dependencies:** Phase 3 complete
 
-### 4.1 Error Path Testing
+### 4.1 ~~Error Path Testing~~ ✅ COMPLETE
 
-Add tests for all error conditions in:
-- `shamir.rs`: threshold=0, threshold>total, empty secret
-- `aes_ciphers.rs`: wrong key length, wrong nonce length
-- `encoding.rs`: invalid hex, invalid base64
-- `hkdf_impl.rs`: output_len=0, output_len > max
+**Resolution:** Added 42 error path tests across 4 crates:
+- `shamir.rs` (+8): empty secret, threshold=0, threshold>total, total>255, empty shares,
+  mismatched share lengths, empty bytes deserialization, single-byte deserialization
+- `aes_ciphers.rs` (+11): invalid key lengths (AES-128-GCM, AES-256-GCM-SIV, AES-256-CTR),
+  invalid nonce lengths, ciphertext too short (3 AEAD variants), garbage ciphertext, wrong nonce
+- `encoding.rs` (+17): Hex odd length/invalid chars/wrong array size/is_valid, Base64 invalid/
+  URL invalid, Base32 invalid, Base58 invalid chars/check too short/invalid checksum, Bech32
+  invalid HRP/decode, PEM missing begin/end/malformed, Multibase decode/encode invalid base
+- `hkdf_impl.rs` (+6): SHA-256/384/512 output too long, zero output, max output boundary tests
 
-### 4.2 Fuzz Testing Infrastructure
+### 4.2 ~~Fuzz Testing Infrastructure~~ ✅ COMPLETE
 
-```toml
-# Cargo.toml
+**Resolution:** Added 2 new fuzz targets to the existing 8-target libfuzzer infrastructure:
+- `fuzz_shamir.rs`: Tests split/combine with fuzzer-derived threshold/total/secret,
+  Share::from_bytes with arbitrary data, combine with constructed shares
+- `fuzz_encoding.rs`: Tests all decoders (Hex, Base64, Base58, Bech32, PEM, Multibase)
+  with arbitrary UTF-8 strings, plus encode/decode roundtrip assertions
 
-[workspace.metadata.fuzz]
-fuzz_targets = [
-    "fuzz_chacha20poly1305",
-    "fuzz_x25519",
-    "fuzz_ml_kem",
-    "fuzz_shamir",
-]
-```
+Updated `fuzz/Cargo.toml` with `arcanum-threshold` dependency and 2 new `[[bin]]` entries.
 
-### 4.3 Property-Based Testing
+### 4.3 ~~Property-Based Testing~~ ✅ COMPLETE
 
-```rust
-// Using proptest crate
-proptest! {
-    #[test]
-    fn test_encrypt_decrypt_roundtrip(
-        key in any::<[u8; 32]>(),
-        nonce in any::<[u8; 12]>(),
-        plaintext in any::<Vec<u8>>(),
-    ) {
-        let cipher = ChaCha20Poly1305::new(&key);
-        let mut buffer = plaintext.clone();
-        let tag = cipher.encrypt(&nonce, &[], &mut buffer);
-        cipher.decrypt(&nonce, &[], &mut buffer, &tag).unwrap();
-        prop_assert_eq!(buffer, plaintext);
-    }
-}
-```
+**Resolution:** Added 12 proptest functions across 2 crates (using `proptest` crate):
+- `encoding.rs` (+9): Hex roundtrip, hex upper roundtrip, Base64 roundtrip, Base64 URL
+  roundtrip, Base58 roundtrip, Base58Check roundtrip, PEM roundtrip, hex encoded length
+  property, hex is_valid after encode property
+- `shamir.rs` (+3): split/combine roundtrip with random secrets and thresholds,
+  any-threshold-subset recovery, share serialization roundtrip
+
+These complement the existing proptests in `aes_ciphers.rs`.
 
 ---
 
@@ -1097,10 +1088,10 @@ proptest! {
 - [x] Add no_std gates to all crates
 - [x] Remove dead feature flags (8 features across 4 crates)
 
-### Phase 4: Test Coverage (ONGOING)
-- [ ] Add error path tests
-- [ ] Set up fuzz testing
-- [ ] Add property-based tests
+### Phase 4: Test Coverage (IN PROGRESS)
+- [x] Add error path tests (+42 tests across 4 crates)
+- [x] Set up fuzz testing (+2 new fuzz targets: shamir, encoding)
+- [x] Add property-based tests (+12 proptests across 2 crates)
 - [ ] Achieve >80% code coverage
 
 ---

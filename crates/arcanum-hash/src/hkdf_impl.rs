@@ -189,4 +189,61 @@ mod tests {
         let key = Hkdf::<Sha512>::derive(ikm, None, None, 64).unwrap();
         assert_eq!(key.len(), 64);
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // ERROR PATH TESTS
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    #[test]
+    fn test_hkdf_sha256_output_too_long() {
+        // RFC 5869: max output = 255 * HashLen = 255 * 32 = 8160 bytes
+        let ikm = b"test key material";
+        let result = Hkdf::<Sha256>::derive(ikm, None, None, 8161);
+        assert!(result.is_err(), "SHA-256 HKDF should reject output > 8160 bytes");
+    }
+
+    #[test]
+    fn test_hkdf_sha384_output_too_long() {
+        // RFC 5869: max output = 255 * 48 = 12240 bytes
+        let ikm = b"test key material";
+        let result = Hkdf::<Sha384>::derive(ikm, None, None, 12241);
+        assert!(result.is_err(), "SHA-384 HKDF should reject output > 12240 bytes");
+    }
+
+    #[test]
+    fn test_hkdf_sha512_output_too_long() {
+        // RFC 5869: max output = 255 * 64 = 16320 bytes
+        let ikm = b"test key material";
+        let result = Hkdf::<Sha512>::derive(ikm, None, None, 16321);
+        assert!(result.is_err(), "SHA-512 HKDF should reject output > 16320 bytes");
+    }
+
+    #[test]
+    fn test_hkdf_sha256_output_zero() {
+        let ikm = b"test key material";
+        // Zero-length output: underlying hkdf crate returns an error for 0
+        let result = Hkdf::<Sha256>::derive(ikm, None, None, 0);
+        // Either succeeds with empty vec or fails — both are acceptable
+        if let Ok(output) = &result {
+            assert!(output.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_hkdf_sha256_max_output_succeeds() {
+        // Exactly at the limit should succeed: 255 * 32 = 8160
+        let ikm = b"test key material";
+        let result = Hkdf::<Sha256>::derive(ikm, None, None, 8160);
+        assert!(result.is_ok(), "SHA-256 HKDF should accept output = 8160 bytes");
+        assert_eq!(result.unwrap().len(), 8160);
+    }
+
+    #[test]
+    fn test_hkdf_sha512_max_output_succeeds() {
+        // Exactly at the limit: 255 * 64 = 16320
+        let ikm = b"test key material";
+        let result = Hkdf::<Sha512>::derive(ikm, None, None, 16320);
+        assert!(result.is_ok(), "SHA-512 HKDF should accept output = 16320 bytes");
+        assert_eq!(result.unwrap().len(), 16320);
+    }
 }

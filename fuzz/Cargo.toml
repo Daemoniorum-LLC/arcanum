@@ -19,6 +19,7 @@ arcanum-symmetric = { path = "../crates/arcanum-symmetric" }
 arcanum-asymmetric = { path = "../crates/arcanum-asymmetric" }
 arcanum-signatures = { path = "../crates/arcanum-signatures" }
 arcanum-hash = { path = "../crates/arcanum-hash" }
+arcanum-threshold = { path = "../crates/arcanum-threshold" }
 arcanum-pqc = { path = "../crates/arcanum-pqc", features = ["ml-dsa", "ml-kem"] }
 
 # Fuzz targets for AEAD
@@ -80,6 +81,22 @@ bench = false
 [[bin]]
 name = "fuzz_p256"
 path = "fuzz_targets/fuzz_p256.rs"
+test = false
+doc = false
+bench = false
+
+# Fuzz targets for threshold cryptography
+[[bin]]
+name = "fuzz_shamir"
+path = "fuzz_targets/fuzz_shamir.rs"
+test = false
+doc = false
+bench = false
+
+# Fuzz targets for encoding
+[[bin]]
+name = "fuzz_encoding"
+path = "fuzz_targets/fuzz_encoding.rs"
 test = false
 doc = false
 bench = false

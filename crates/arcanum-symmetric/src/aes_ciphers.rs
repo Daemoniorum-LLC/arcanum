@@ -437,6 +437,126 @@ mod tests {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════
+    // ERROR PATH TESTS
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    #[test]
+    fn test_aes128_gcm_invalid_key_length() {
+        let nonce = Aes128Gcm::generate_nonce();
+        // Too short (8 bytes instead of 16)
+        assert!(matches!(
+            Aes128Gcm::encrypt(&[0u8; 8], &nonce, b"test", None),
+            Err(Error::InvalidKeyLength { expected: 16, actual: 8 })
+        ));
+        // Too long (32 bytes instead of 16)
+        assert!(matches!(
+            Aes128Gcm::encrypt(&[0u8; 32], &nonce, b"test", None),
+            Err(Error::InvalidKeyLength { expected: 16, actual: 32 })
+        ));
+    }
+
+    #[test]
+    fn test_aes256_gcm_siv_invalid_key_length() {
+        let nonce = Aes256GcmSiv::generate_nonce();
+        assert!(matches!(
+            Aes256GcmSiv::encrypt(&[0u8; 16], &nonce, b"test", None),
+            Err(Error::InvalidKeyLength { expected: 32, actual: 16 })
+        ));
+    }
+
+    #[test]
+    fn test_aes256_ctr_invalid_key_length() {
+        assert!(matches!(
+            Aes256Ctr::new(&[0u8; 16], &[0u8; 16]),
+            Err(Error::InvalidKeyLength { expected: 32, actual: 16 })
+        ));
+    }
+
+    #[test]
+    fn test_aes128_gcm_invalid_nonce_length() {
+        let key = Aes128Gcm::generate_key();
+        assert!(matches!(
+            Aes128Gcm::encrypt(&key, &[0u8; 8], b"test", None),
+            Err(Error::InvalidNonceLength { expected: 12, actual: 8 })
+        ));
+    }
+
+    #[test]
+    fn test_aes256_gcm_siv_invalid_nonce_length() {
+        let key = Aes256GcmSiv::generate_key();
+        assert!(matches!(
+            Aes256GcmSiv::encrypt(&key, &[0u8; 8], b"test", None),
+            Err(Error::InvalidNonceLength { expected: 12, actual: 8 })
+        ));
+    }
+
+    #[test]
+    fn test_aes256_ctr_invalid_nonce_length() {
+        assert!(matches!(
+            Aes256Ctr::new(&[0u8; 32], &[0u8; 8]),
+            Err(Error::InvalidNonceLength { expected: 16, actual: 8 })
+        ));
+    }
+
+    #[test]
+    fn test_decrypt_ciphertext_too_short() {
+        let key = Aes256Gcm::generate_key();
+        let nonce = Aes256Gcm::generate_nonce();
+        // Ciphertext shorter than TAG_SIZE (16 bytes)
+        assert!(matches!(
+            Aes256Gcm::decrypt(&key, &nonce, &[0u8; 15], None),
+            Err(Error::CiphertextTooShort { size: 15, minimum: 16 })
+        ));
+        // Empty ciphertext
+        assert!(matches!(
+            Aes256Gcm::decrypt(&key, &nonce, &[], None),
+            Err(Error::CiphertextTooShort { size: 0, minimum: 16 })
+        ));
+    }
+
+    #[test]
+    fn test_decrypt_garbage_ciphertext() {
+        let key = Aes256Gcm::generate_key();
+        let nonce = Aes256Gcm::generate_nonce();
+        // Valid length but garbage data — should fail authentication
+        let garbage = vec![0xDE; 64];
+        assert!(matches!(
+            Aes256Gcm::decrypt(&key, &nonce, &garbage, None),
+            Err(Error::DecryptionFailed)
+        ));
+    }
+
+    #[test]
+    fn test_decrypt_wrong_nonce_fails() {
+        let key = Aes256Gcm::generate_key();
+        let nonce = Aes256Gcm::generate_nonce();
+        let wrong_nonce = Aes256Gcm::generate_nonce();
+
+        let ciphertext = Aes256Gcm::encrypt(&key, &nonce, b"hello", None).unwrap();
+        assert!(Aes256Gcm::decrypt(&key, &wrong_nonce, &ciphertext, None).is_err());
+    }
+
+    #[test]
+    fn test_gcm_siv_decrypt_ciphertext_too_short() {
+        let key = Aes256GcmSiv::generate_key();
+        let nonce = Aes256GcmSiv::generate_nonce();
+        assert!(matches!(
+            Aes256GcmSiv::decrypt(&key, &nonce, &[0u8; 10], None),
+            Err(Error::CiphertextTooShort { .. })
+        ));
+    }
+
+    #[test]
+    fn test_aes128_gcm_decrypt_ciphertext_too_short() {
+        let key = Aes128Gcm::generate_key();
+        let nonce = Aes128Gcm::generate_nonce();
+        assert!(matches!(
+            Aes128Gcm::decrypt(&key, &nonce, &[], None),
+            Err(Error::CiphertextTooShort { .. })
+        ));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
     // PROPERTY-BASED TESTS
     // ═══════════════════════════════════════════════════════════════════════════════
 
