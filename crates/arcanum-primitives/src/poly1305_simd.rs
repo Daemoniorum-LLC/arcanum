@@ -88,8 +88,9 @@ impl Poly1305Powers {
 /// Load 16 bytes as 5x26-bit limbs.
 #[inline]
 fn load_26bit_limbs(bytes: &[u8; 16]) -> [u64; 5] {
-    let lo = u64::from_le_bytes(bytes[0..8].try_into().unwrap());
-    let hi = u64::from_le_bytes(bytes[8..16].try_into().unwrap());
+    let (lo_half, hi_half) = bytes.split_at(8);
+    let lo = u64::from_le_bytes([lo_half[0], lo_half[1], lo_half[2], lo_half[3], lo_half[4], lo_half[5], lo_half[6], lo_half[7]]);
+    let hi = u64::from_le_bytes([hi_half[0], hi_half[1], hi_half[2], hi_half[3], hi_half[4], hi_half[5], hi_half[6], hi_half[7]]);
 
     [
         lo & 0x3ffffff,
@@ -1193,10 +1194,10 @@ pub fn process_blocks_auto(acc: &mut [u64; 5], powers: &Poly1305Powers4, data: &
         if has_avx2() && data.len() >= 64 {
             while pos + 64 <= data.len() {
                 let blocks: [[u8; 16]; 4] = [
-                    data[pos..pos + 16].try_into().unwrap(),
-                    data[pos + 16..pos + 32].try_into().unwrap(),
-                    data[pos + 32..pos + 48].try_into().unwrap(),
-                    data[pos + 48..pos + 64].try_into().unwrap(),
+                    data[pos..pos + 16].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 16..pos + 32].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 32..pos + 48].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 48..pos + 64].try_into().expect("loop condition guarantees N bytes available"),
                 ];
 
                 unsafe {
@@ -1213,7 +1214,7 @@ pub fn process_blocks_auto(acc: &mut [u64; 5], powers: &Poly1305Powers4, data: &
 
     // Process remaining full blocks with scalar
     while pos + 16 <= data.len() {
-        let block: [u8; 16] = data[pos..pos + 16].try_into().unwrap();
+        let block: [u8; 16] = data[pos..pos + 16].try_into().expect("bounds checked by loop condition");
         let m = load_block_with_hibit(&block);
 
         // acc = (acc + m) * r
@@ -1243,14 +1244,14 @@ pub fn process_blocks_8way(acc: &mut [u64; 5], powers: &Poly1305Powers8, data: &
             // 8-way processing: 128 bytes at a time
             while pos + 128 <= data.len() {
                 let blocks: [[u8; 16]; 8] = [
-                    data[pos..pos + 16].try_into().unwrap(),
-                    data[pos + 16..pos + 32].try_into().unwrap(),
-                    data[pos + 32..pos + 48].try_into().unwrap(),
-                    data[pos + 48..pos + 64].try_into().unwrap(),
-                    data[pos + 64..pos + 80].try_into().unwrap(),
-                    data[pos + 80..pos + 96].try_into().unwrap(),
-                    data[pos + 96..pos + 112].try_into().unwrap(),
-                    data[pos + 112..pos + 128].try_into().unwrap(),
+                    data[pos..pos + 16].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 16..pos + 32].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 32..pos + 48].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 48..pos + 64].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 64..pos + 80].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 80..pos + 96].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 96..pos + 112].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 112..pos + 128].try_into().expect("loop condition guarantees N bytes available"),
                 ];
 
                 unsafe {
@@ -1263,10 +1264,10 @@ pub fn process_blocks_8way(acc: &mut [u64; 5], powers: &Poly1305Powers8, data: &
             // 4-way processing for remaining 64-127 bytes
             while pos + 64 <= data.len() {
                 let blocks: [[u8; 16]; 4] = [
-                    data[pos..pos + 16].try_into().unwrap(),
-                    data[pos + 16..pos + 32].try_into().unwrap(),
-                    data[pos + 32..pos + 48].try_into().unwrap(),
-                    data[pos + 48..pos + 64].try_into().unwrap(),
+                    data[pos..pos + 16].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 16..pos + 32].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 32..pos + 48].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 48..pos + 64].try_into().expect("loop condition guarantees N bytes available"),
                 ];
 
                 unsafe {
@@ -1282,7 +1283,7 @@ pub fn process_blocks_8way(acc: &mut [u64; 5], powers: &Poly1305Powers8, data: &
 
     // Process remaining full blocks with scalar
     while pos + 16 <= data.len() {
-        let block: [u8; 16] = data[pos..pos + 16].try_into().unwrap();
+        let block: [u8; 16] = data[pos..pos + 16].try_into().expect("bounds checked by loop condition");
         let m = load_block_with_hibit(&block);
 
         acc[0] += m[0];
@@ -1311,22 +1312,22 @@ pub fn process_blocks_16way(acc: &mut [u64; 5], powers: &Poly1305Powers16, data:
         if has_avx512f() && data.len() >= 256 {
             while pos + 256 <= data.len() {
                 let blocks: [[u8; 16]; 16] = [
-                    data[pos..pos + 16].try_into().unwrap(),
-                    data[pos + 16..pos + 32].try_into().unwrap(),
-                    data[pos + 32..pos + 48].try_into().unwrap(),
-                    data[pos + 48..pos + 64].try_into().unwrap(),
-                    data[pos + 64..pos + 80].try_into().unwrap(),
-                    data[pos + 80..pos + 96].try_into().unwrap(),
-                    data[pos + 96..pos + 112].try_into().unwrap(),
-                    data[pos + 112..pos + 128].try_into().unwrap(),
-                    data[pos + 128..pos + 144].try_into().unwrap(),
-                    data[pos + 144..pos + 160].try_into().unwrap(),
-                    data[pos + 160..pos + 176].try_into().unwrap(),
-                    data[pos + 176..pos + 192].try_into().unwrap(),
-                    data[pos + 192..pos + 208].try_into().unwrap(),
-                    data[pos + 208..pos + 224].try_into().unwrap(),
-                    data[pos + 224..pos + 240].try_into().unwrap(),
-                    data[pos + 240..pos + 256].try_into().unwrap(),
+                    data[pos..pos + 16].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 16..pos + 32].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 32..pos + 48].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 48..pos + 64].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 64..pos + 80].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 80..pos + 96].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 96..pos + 112].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 112..pos + 128].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 128..pos + 144].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 144..pos + 160].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 160..pos + 176].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 176..pos + 192].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 192..pos + 208].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 208..pos + 224].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 224..pos + 240].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 240..pos + 256].try_into().expect("loop condition guarantees N bytes available"),
                 ];
 
                 unsafe {
@@ -1344,14 +1345,14 @@ pub fn process_blocks_16way(acc: &mut [u64; 5], powers: &Poly1305Powers16, data:
             // 8-way processing: 128 bytes at a time
             while pos + 128 <= data.len() {
                 let blocks: [[u8; 16]; 8] = [
-                    data[pos..pos + 16].try_into().unwrap(),
-                    data[pos + 16..pos + 32].try_into().unwrap(),
-                    data[pos + 32..pos + 48].try_into().unwrap(),
-                    data[pos + 48..pos + 64].try_into().unwrap(),
-                    data[pos + 64..pos + 80].try_into().unwrap(),
-                    data[pos + 80..pos + 96].try_into().unwrap(),
-                    data[pos + 96..pos + 112].try_into().unwrap(),
-                    data[pos + 112..pos + 128].try_into().unwrap(),
+                    data[pos..pos + 16].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 16..pos + 32].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 32..pos + 48].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 48..pos + 64].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 64..pos + 80].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 80..pos + 96].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 96..pos + 112].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 112..pos + 128].try_into().expect("loop condition guarantees N bytes available"),
                 ];
 
                 unsafe {
@@ -1364,10 +1365,10 @@ pub fn process_blocks_16way(acc: &mut [u64; 5], powers: &Poly1305Powers16, data:
             // 4-way processing for remaining 64-127 bytes
             while pos + 64 <= data.len() {
                 let blocks: [[u8; 16]; 4] = [
-                    data[pos..pos + 16].try_into().unwrap(),
-                    data[pos + 16..pos + 32].try_into().unwrap(),
-                    data[pos + 32..pos + 48].try_into().unwrap(),
-                    data[pos + 48..pos + 64].try_into().unwrap(),
+                    data[pos..pos + 16].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 16..pos + 32].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 32..pos + 48].try_into().expect("loop condition guarantees N bytes available"),
+                    data[pos + 48..pos + 64].try_into().expect("loop condition guarantees N bytes available"),
                 ];
 
                 unsafe {
@@ -1383,7 +1384,7 @@ pub fn process_blocks_16way(acc: &mut [u64; 5], powers: &Poly1305Powers16, data:
 
     // Process remaining full blocks with scalar
     while pos + 16 <= data.len() {
-        let block: [u8; 16] = data[pos..pos + 16].try_into().unwrap();
+        let block: [u8; 16] = data[pos..pos + 16].try_into().expect("bounds checked by loop condition");
         let m = load_block_with_hibit(&block);
 
         acc[0] += m[0];
@@ -1457,8 +1458,9 @@ pub fn finalize_acc(acc: &[u64; 5], s: &[u8; 16]) -> [u8; 16] {
     let h1 = (h[2] >> 12) | (h[3] << 14) | (h[4] << 40);
 
     // Add s
-    let s_lo = u64::from_le_bytes(s[0..8].try_into().unwrap());
-    let s_hi = u64::from_le_bytes(s[8..16].try_into().unwrap());
+    let (s_lo_half, s_hi_half) = s.split_at(8);
+    let s_lo = u64::from_le_bytes([s_lo_half[0], s_lo_half[1], s_lo_half[2], s_lo_half[3], s_lo_half[4], s_lo_half[5], s_lo_half[6], s_lo_half[7]]);
+    let s_hi = u64::from_le_bytes([s_hi_half[0], s_hi_half[1], s_hi_half[2], s_hi_half[3], s_hi_half[4], s_hi_half[5], s_hi_half[6], s_hi_half[7]]);
 
     let (r0, carry) = h0.overflowing_add(s_lo);
     let r1 = h1.wrapping_add(s_hi).wrapping_add(carry as u64);
@@ -1498,11 +1500,14 @@ pub struct Poly1305Simd {
 impl Poly1305Simd {
     /// Create a new SIMD-accelerated Poly1305 instance.
     pub fn new(key: &[u8; 32]) -> Self {
-        let mut r_bytes: [u8; 16] = key[0..16].try_into().unwrap();
+        let (r_half, s_half) = key.split_at(16);
+        let mut r_bytes = [0u8; 16];
+        r_bytes.copy_from_slice(r_half);
         clamp(&mut r_bytes);
 
         let powers = Poly1305Powers4::new(&r_bytes);
-        let s: [u8; 16] = key[16..32].try_into().unwrap();
+        let mut s = [0u8; 16];
+        s.copy_from_slice(s_half);
 
         Self {
             powers,
@@ -1633,12 +1638,15 @@ pub struct Poly1305Ultra {
 impl Poly1305Ultra {
     /// Create a new ultra-fast Poly1305 instance.
     pub fn new(key: &[u8; 32]) -> Self {
-        let mut r_bytes: [u8; 16] = key[0..16].try_into().unwrap();
+        let (r_half, s_key_half) = key.split_at(16);
+        let mut r_bytes = [0u8; 16];
+        r_bytes.copy_from_slice(r_half);
         clamp(&mut r_bytes);
 
         // Load r as two 64-bit values
-        let r0_full = u64::from_le_bytes(r_bytes[0..8].try_into().unwrap());
-        let r1_full = u64::from_le_bytes(r_bytes[8..16].try_into().unwrap());
+        let (r_lo_half, r_hi_half) = r_bytes.split_at(8);
+        let r0_full = u64::from_le_bytes([r_lo_half[0], r_lo_half[1], r_lo_half[2], r_lo_half[3], r_lo_half[4], r_lo_half[5], r_lo_half[6], r_lo_half[7]]);
+        let r1_full = u64::from_le_bytes([r_hi_half[0], r_hi_half[1], r_hi_half[2], r_hi_half[3], r_hi_half[4], r_hi_half[5], r_hi_half[6], r_hi_half[7]]);
 
         // Convert to 44-bit limbs
         // r = r0 + r1*2^44 + r2*2^88
@@ -1659,8 +1667,9 @@ impl Poly1305Ultra {
         let r2p = [r2[1] * 20, r2[2] * 20];
 
         // Load s
-        let s0 = u64::from_le_bytes(key[16..24].try_into().unwrap());
-        let s1 = u64::from_le_bytes(key[24..32].try_into().unwrap());
+        let (s0_bytes, s1_bytes) = s_key_half.split_at(8);
+        let s0 = u64::from_le_bytes([s0_bytes[0], s0_bytes[1], s0_bytes[2], s0_bytes[3], s0_bytes[4], s0_bytes[5], s0_bytes[6], s0_bytes[7]]);
+        let s1 = u64::from_le_bytes([s1_bytes[0], s1_bytes[1], s1_bytes[2], s1_bytes[3], s1_bytes[4], s1_bytes[5], s1_bytes[6], s1_bytes[7]]);
 
         Self {
             r,
@@ -1719,8 +1728,9 @@ impl Poly1305Ultra {
     #[inline(always)]
     fn process_block(&mut self, block: &[u8; 16], hibit: u64) {
         // Load block as 44-bit limbs
-        let b0 = u64::from_le_bytes(block[0..8].try_into().unwrap());
-        let b1 = u64::from_le_bytes(block[8..16].try_into().unwrap());
+        let (blk_lo, blk_hi) = block.split_at(8);
+        let b0 = u64::from_le_bytes([blk_lo[0], blk_lo[1], blk_lo[2], blk_lo[3], blk_lo[4], blk_lo[5], blk_lo[6], blk_lo[7]]);
+        let b1 = u64::from_le_bytes([blk_hi[0], blk_hi[1], blk_hi[2], blk_hi[3], blk_hi[4], blk_hi[5], blk_hi[6], blk_hi[7]]);
 
         let m0 = b0 & 0xfffffffffff;
         let m1 = ((b0 >> 44) | (b1 << 20)) & 0xfffffffffff;
@@ -1773,10 +1783,13 @@ impl Poly1305Ultra {
         debug_assert!(blocks.len() >= 32);
 
         // Load both blocks
-        let b0_lo = u64::from_le_bytes(blocks[0..8].try_into().unwrap());
-        let b0_hi = u64::from_le_bytes(blocks[8..16].try_into().unwrap());
-        let b1_lo = u64::from_le_bytes(blocks[16..24].try_into().unwrap());
-        let b1_hi = u64::from_le_bytes(blocks[24..32].try_into().unwrap());
+        let (blk0, blk1_full) = blocks.split_at(16);
+        let (b0_lo_bytes, b0_hi_bytes) = blk0.split_at(8);
+        let (b1_lo_bytes, b1_hi_bytes) = blk1_full.split_at(8);
+        let b0_lo = u64::from_le_bytes([b0_lo_bytes[0], b0_lo_bytes[1], b0_lo_bytes[2], b0_lo_bytes[3], b0_lo_bytes[4], b0_lo_bytes[5], b0_lo_bytes[6], b0_lo_bytes[7]]);
+        let b0_hi = u64::from_le_bytes([b0_hi_bytes[0], b0_hi_bytes[1], b0_hi_bytes[2], b0_hi_bytes[3], b0_hi_bytes[4], b0_hi_bytes[5], b0_hi_bytes[6], b0_hi_bytes[7]]);
+        let b1_lo = u64::from_le_bytes([b1_lo_bytes[0], b1_lo_bytes[1], b1_lo_bytes[2], b1_lo_bytes[3], b1_lo_bytes[4], b1_lo_bytes[5], b1_lo_bytes[6], b1_lo_bytes[7]]);
+        let b1_hi = u64::from_le_bytes([b1_hi_bytes[0], b1_hi_bytes[1], b1_hi_bytes[2], b1_hi_bytes[3], b1_hi_bytes[4], b1_hi_bytes[5], b1_hi_bytes[6], b1_hi_bytes[7]]);
 
         // Convert to 44-bit limbs with hibit
         let m0_0 = b0_lo & 0xfffffffffff;
@@ -1868,7 +1881,7 @@ impl Poly1305Ultra {
 
         // Process single remaining block
         if pos + 16 <= data.len() {
-            let block: [u8; 16] = data[pos..pos + 16].try_into().unwrap();
+            let block: [u8; 16] = data[pos..pos + 16].try_into().expect("bounds checked by loop condition");
             self.process_block(&block, 1);
             pos += 16;
         }
@@ -1970,11 +1983,14 @@ pub struct Poly1305Simd512 {
 impl Poly1305Simd512 {
     /// Create a new AVX-512 accelerated Poly1305 instance.
     pub fn new(key: &[u8; 32]) -> Self {
-        let mut r_bytes: [u8; 16] = key[0..16].try_into().unwrap();
+        let (r_half, s_half) = key.split_at(16);
+        let mut r_bytes = [0u8; 16];
+        r_bytes.copy_from_slice(r_half);
         clamp(&mut r_bytes);
 
         let powers = Poly1305Powers16::new(&r_bytes);
-        let s: [u8; 16] = key[16..32].try_into().unwrap();
+        let mut s = [0u8; 16];
+        s.copy_from_slice(s_half);
 
         Self {
             powers,
@@ -2081,7 +2097,7 @@ mod tests {
     #[test]
     fn test_simd_rfc8439_vector() {
         let key = hex_to_bytes("85d6be7857556d337f4452fe42d506a80103808afb0db2fd4abff6af4149f51b");
-        let key: [u8; 32] = key.try_into().unwrap();
+        let key: [u8; 32] = key.try_into().expect("test key is 32 bytes");
 
         let message = b"Cryptographic Forum Research Group";
 

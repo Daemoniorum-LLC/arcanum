@@ -84,8 +84,16 @@ impl U130 {
         let mut limbs = [0u64; 5];
 
         // Read as little-endian u64s
-        let lo = u64::from_le_bytes(bytes[0..8].try_into().unwrap());
-        let hi = u64::from_le_bytes(bytes[8..16].try_into().unwrap());
+        // Safety: split_at(8) on a 16-byte array yields two 8-byte slices
+        let (lo_half, hi_half) = bytes.split_at(8);
+        let lo = u64::from_le_bytes([
+            lo_half[0], lo_half[1], lo_half[2], lo_half[3],
+            lo_half[4], lo_half[5], lo_half[6], lo_half[7],
+        ]);
+        let hi = u64::from_le_bytes([
+            hi_half[0], hi_half[1], hi_half[2], hi_half[3],
+            hi_half[4], hi_half[5], hi_half[6], hi_half[7],
+        ]);
 
         limbs[0] = lo & 0x3ffffff;
         limbs[1] = (lo >> 26) & 0x3ffffff;
@@ -262,8 +270,16 @@ impl U130 {
         let h1 = (h.limbs[2] >> 12) | (h.limbs[3] << 14) | (h.limbs[4] << 40);
 
         // Add s
-        let s_lo = u64::from_le_bytes(s[0..8].try_into().unwrap());
-        let s_hi = u64::from_le_bytes(s[8..16].try_into().unwrap());
+        // Safety: split_at(8) on a 16-byte array yields two 8-byte slices
+        let (s_lo_half, s_hi_half) = s.split_at(8);
+        let s_lo = u64::from_le_bytes([
+            s_lo_half[0], s_lo_half[1], s_lo_half[2], s_lo_half[3],
+            s_lo_half[4], s_lo_half[5], s_lo_half[6], s_lo_half[7],
+        ]);
+        let s_hi = u64::from_le_bytes([
+            s_hi_half[0], s_hi_half[1], s_hi_half[2], s_hi_half[3],
+            s_hi_half[4], s_hi_half[5], s_hi_half[6], s_hi_half[7],
+        ]);
 
         let (r0, carry) = h0.overflowing_add(s_lo);
         let r1 = h1.wrapping_add(s_hi).wrapping_add(carry as u64);
@@ -300,11 +316,15 @@ impl Poly1305 {
     ///
     /// The key is split into r (clamped) and s.
     pub fn new(key: &[u8; KEY_SIZE]) -> Self {
-        let mut r_bytes: [u8; 16] = key[0..16].try_into().unwrap();
+        // Split key into r (first 16 bytes) and s (last 16 bytes)
+        let (r_half, s_half) = key.split_at(16);
+        let mut r_bytes = [0u8; 16];
+        r_bytes.copy_from_slice(r_half);
         clamp(&mut r_bytes);
         let r = U130::from_le_bytes_128(&r_bytes);
 
-        let s: [u8; 16] = key[16..32].try_into().unwrap();
+        let mut s = [0u8; 16];
+        s.copy_from_slice(s_half);
 
         Self {
             r,
@@ -317,16 +337,16 @@ impl Poly1305 {
 
     /// Process more message data.
     pub fn update(&mut self, data: &[u8]) {
-        let mut pos = 0;
+        let mut remaining = data;
 
         // Fill buffer if we have leftover data
         if self.buffer_pos > 0 {
             let needed = BLOCK_SIZE - self.buffer_pos;
-            let available = data.len().min(needed);
+            let available = remaining.len().min(needed);
             self.buffer[self.buffer_pos..self.buffer_pos + available]
-                .copy_from_slice(&data[..available]);
+                .copy_from_slice(&remaining[..available]);
             self.buffer_pos += available;
-            pos += available;
+            remaining = &remaining[available..];
 
             if self.buffer_pos == BLOCK_SIZE {
                 let block = U130::from_block(&self.buffer);
@@ -335,19 +355,23 @@ impl Poly1305 {
             }
         }
 
-        // Process full blocks
-        while pos + BLOCK_SIZE <= data.len() {
-            let block_bytes: &[u8; 16] = data[pos..pos + BLOCK_SIZE].try_into().unwrap();
+        // Process full blocks using chunks_exact (guaranteed 16-byte slices)
+        let chunks = remaining.chunks_exact(BLOCK_SIZE);
+        let tail = chunks.remainder();
+
+        for chunk in chunks {
+            // chunks_exact guarantees each chunk is exactly BLOCK_SIZE bytes
+            let block_bytes: &[u8; 16] = chunk.try_into().expect(
+                "chunks_exact(16) yields 16-byte slices"
+            );
             let block = U130::from_block(block_bytes);
             self.acc = self.acc.add(&block).mul_reduce(&self.r);
-            pos += BLOCK_SIZE;
         }
 
-        // Save remaining bytes
-        if pos < data.len() {
-            let remaining = data.len() - pos;
-            self.buffer[..remaining].copy_from_slice(&data[pos..]);
-            self.buffer_pos = remaining;
+        // Save remaining bytes (guaranteed < BLOCK_SIZE by chunks_exact)
+        if !tail.is_empty() {
+            self.buffer[..tail.len()].copy_from_slice(tail);
+            self.buffer_pos = tail.len();
         }
     }
 
@@ -557,7 +581,8 @@ mod tests {
         // First 16 bytes (r) before clamping: 85d6be7857556d337f4452fe42d506a8
         // After clamping certain bits should be 0
 
-        let mut r: [u8; 16] = key[0..16].try_into().unwrap();
+        let mut r = [0u8; 16];
+        r.copy_from_slice(&key[0..16]);
         let original_r = r;
         clamp(&mut r);
 
@@ -582,5 +607,79 @@ mod tests {
         let u = U130::from_le_bytes_128(&ones);
         // Should have non-zero limbs
         assert!(u.limbs.iter().any(|&x| x != 0));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ROBUSTNESS TESTS (Release Roadmap §1.2)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // Test all input sizes from 0 to 100 — no panics for any size
+    #[test]
+    fn test_poly1305_all_sizes_0_to_100() {
+        let key = [0x42u8; 32];
+
+        for size in 0..=100 {
+            let input = vec![0xAB; size];
+            let mut poly = Poly1305::new(&key);
+            poly.update(&input);
+            let tag = poly.finalize();
+            assert_eq!(tag.len(), 16, "Tag length wrong at input size {}", size);
+        }
+    }
+
+    // Test multiple unaligned updates that don't sum to block boundaries
+    #[test]
+    fn test_poly1305_multiple_unaligned_updates() {
+        let key = [0x42u8; 32];
+
+        // One-shot reference
+        let full_msg: Vec<u8> = (0..=20).collect();
+        let tag_ref = Poly1305::mac(&key, &full_msg);
+
+        // Split into odd-sized updates: 3 + 5 + 1 + 11 + 1 = 21 bytes
+        let mut poly = Poly1305::new(&key);
+        poly.update(&full_msg[0..3]);
+        poly.update(&full_msg[3..8]);
+        poly.update(&full_msg[8..9]);
+        poly.update(&full_msg[9..20]);
+        poly.update(&full_msg[20..21]);
+        let tag = poly.finalize();
+
+        assert_eq!(tag, tag_ref);
+    }
+
+    // Test large input (1MB) — ensures no overflow or panic
+    #[test]
+    fn test_poly1305_large_input() {
+        let key = [0x42u8; 32];
+        let input = vec![0xCD; 1_000_000];
+
+        let mut poly = Poly1305::new(&key);
+        poly.update(&input);
+        let tag = poly.finalize();
+        assert_eq!(tag.len(), 16);
+
+        // Verify against one-shot
+        let tag_ref = Poly1305::mac(&key, &input);
+        assert_eq!(tag, tag_ref);
+    }
+
+    // Test single-byte updates for sizes crossing block boundaries
+    #[test]
+    fn test_poly1305_single_byte_boundary_cross() {
+        let key = [0x42u8; 32];
+
+        // Build a message that's exactly 2.5 blocks (40 bytes)
+        let message: Vec<u8> = (0..40).collect();
+        let tag_ref = Poly1305::mac(&key, &message);
+
+        // Feed one byte at a time
+        let mut poly = Poly1305::new(&key);
+        for &byte in &message {
+            poly.update(&[byte]);
+        }
+        let tag = poly.finalize();
+
+        assert_eq!(tag, tag_ref);
     }
 }
