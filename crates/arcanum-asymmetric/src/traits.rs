@@ -11,6 +11,7 @@ pub trait AsymmetricEncrypt {
     type Ciphertext;
 
     /// Encrypt a message.
+    #[must_use = "encryption can fail; check the Result"]
     fn encrypt(&self, plaintext: &[u8]) -> Result<Self::Ciphertext>;
 }
 
@@ -20,6 +21,7 @@ pub trait AsymmetricDecrypt {
     type Ciphertext;
 
     /// Decrypt a ciphertext.
+    #[must_use = "decryption can fail; check the Result"]
     fn decrypt(&self, ciphertext: &Self::Ciphertext) -> Result<Vec<u8>>;
 }
 
@@ -50,6 +52,7 @@ pub trait KeyAgreement {
     fn generate() -> (Self::SecretKey, Self::PublicKey);
 
     /// Perform key agreement.
+    #[must_use = "this operation can fail; check the Result"]
     fn agree(
         our_secret: &Self::SecretKey,
         their_public: &Self::PublicKey,
@@ -64,12 +67,14 @@ pub trait IntegratedEncryption {
     type Ciphertext;
 
     /// Encrypt to a public key.
+    #[must_use = "encryption can fail; check the Result"]
     fn encrypt(
         recipient_public: &Self::EphemeralPublic,
         plaintext: &[u8],
     ) -> Result<Self::Ciphertext>;
 
     /// Decrypt with a secret key.
+    #[must_use = "decryption can fail; check the Result"]
     fn decrypt<S>(recipient_secret: &S, ciphertext: &Self::Ciphertext) -> Result<Vec<u8>>
     where
         S: DiffieHellman<PublicKey = Self::EphemeralPublic>;

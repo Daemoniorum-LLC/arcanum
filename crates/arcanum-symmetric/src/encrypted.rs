@@ -97,6 +97,7 @@ impl EncryptedPayload {
     }
 
     /// Extract nonce and ciphertext based on algorithm.
+    #[must_use = "this operation can fail; check the Result"]
     pub fn extract(&self, nonce_size: usize) -> Result<(&[u8], &[u8])> {
         if self.data.len() < nonce_size {
             return Err(Error::InvalidCiphertext);
@@ -128,6 +129,7 @@ impl EncryptedPayload {
     }
 
     /// Decode from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() < 2 {
             return Err(Error::InvalidCiphertext);

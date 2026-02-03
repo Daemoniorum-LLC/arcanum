@@ -37,6 +37,7 @@ impl Hmac<Sha256> {
     }
 
     /// Verify HMAC.
+    #[must_use = "verification result must be checked"]
     pub fn verify(key: &[u8], data: &[u8], tag: &[u8]) -> Result<()> {
         let mut mac =
             HmacInner::<Sha256>::new_from_slice(key).expect("HMAC can take key of any size");
@@ -69,6 +70,7 @@ impl Hmac<Sha384> {
     }
 
     /// Verify HMAC.
+    #[must_use = "verification result must be checked"]
     pub fn verify(key: &[u8], data: &[u8], tag: &[u8]) -> Result<()> {
         let mut mac =
             HmacInner::<Sha384>::new_from_slice(key).expect("HMAC can take key of any size");
@@ -93,6 +95,7 @@ impl Hmac<Sha512> {
     }
 
     /// Verify HMAC.
+    #[must_use = "verification result must be checked"]
     pub fn verify(key: &[u8], data: &[u8], tag: &[u8]) -> Result<()> {
         let mut mac =
             HmacInner::<Sha512>::new_from_slice(key).expect("HMAC can take key of any size");

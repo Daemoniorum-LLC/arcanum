@@ -77,6 +77,7 @@ impl<const N: usize> SecretKey<N> {
     }
 
     /// Create from a slice, returning error if length doesn't match.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_slice(slice: &[u8]) -> Result<Self> {
         if slice.len() != N {
             return Err(Error::InvalidKeyLength {
@@ -154,6 +155,7 @@ impl<const N: usize> PublicKey<N> {
     }
 
     /// Create from a slice, returning error if length doesn't match.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_slice(slice: &[u8]) -> Result<Self> {
         if slice.len() != N {
             return Err(Error::InvalidKeyLength {
@@ -189,6 +191,7 @@ impl<const N: usize> PublicKey<N> {
 
     /// Decode from hex string.
     #[cfg(feature = "encoding")]
+    #[must_use = "encoding can fail; check the Result"]
     pub fn from_hex(s: &str) -> Result<Self> {
         let bytes = hex::decode(s).map_err(|e| Error::ParseError(e.to_string()))?;
         Self::from_slice(&bytes)
@@ -351,6 +354,7 @@ impl KeyId {
     }
 
     /// Parse from string.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn parse(s: &str) -> Result<Self> {
         let uuid = Uuid::parse_str(s).map_err(|e| Error::ParseError(e.to_string()))?;
         Ok(Self(uuid))

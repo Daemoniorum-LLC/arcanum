@@ -38,6 +38,7 @@ impl P256SecretKey {
     }
 
     /// Create from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         let inner = p256::SecretKey::from_slice(bytes).map_err(|_| Error::InvalidKeyFormat)?;
         Ok(Self { inner })
@@ -83,6 +84,7 @@ pub struct P256PublicKey {
 
 impl P256PublicKey {
     /// Create from SEC1-encoded bytes (compressed or uncompressed).
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_sec1_bytes(bytes: &[u8]) -> Result<Self> {
         let inner = p256::PublicKey::from_sec1_bytes(bytes).map_err(|_| Error::InvalidKeyFormat)?;
         Ok(Self { inner })
@@ -104,6 +106,7 @@ impl P256PublicKey {
     }
 
     /// Decode from hex.
+    #[must_use = "encoding can fail; check the Result"]
     pub fn from_hex(hex_str: &str) -> Result<Self> {
         let bytes = hex::decode(hex_str).map_err(|_| Error::InvalidKeyFormat)?;
         Self::from_sec1_bytes(&bytes)
@@ -130,6 +133,7 @@ impl P256SharedSecret {
     }
 
     /// Derive a key using HKDF.
+    #[must_use = "key derivation can fail; check the Result"]
     pub fn derive_key(&self, info: &[u8], output_len: usize) -> Result<Vec<u8>> {
         use hkdf::Hkdf;
         use sha2::Sha256;
@@ -186,6 +190,7 @@ impl P384SecretKey {
     }
 
     /// Create from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         let inner = p384::SecretKey::from_slice(bytes).map_err(|_| Error::InvalidKeyFormat)?;
         Ok(Self { inner })
@@ -231,6 +236,7 @@ pub struct P384PublicKey {
 
 impl P384PublicKey {
     /// Create from SEC1-encoded bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_sec1_bytes(bytes: &[u8]) -> Result<Self> {
         let inner = p384::PublicKey::from_sec1_bytes(bytes).map_err(|_| Error::InvalidKeyFormat)?;
         Ok(Self { inner })
@@ -272,6 +278,7 @@ impl P384SharedSecret {
     }
 
     /// Derive a key using HKDF.
+    #[must_use = "key derivation can fail; check the Result"]
     pub fn derive_key(&self, info: &[u8], output_len: usize) -> Result<Vec<u8>> {
         use hkdf::Hkdf;
         use sha2::Sha384;
@@ -328,6 +335,7 @@ impl Secp256k1SecretKey {
     }
 
     /// Create from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         let inner = k256::SecretKey::from_slice(bytes).map_err(|_| Error::InvalidKeyFormat)?;
         Ok(Self { inner })
@@ -376,6 +384,7 @@ pub struct Secp256k1PublicKey {
 
 impl Secp256k1PublicKey {
     /// Create from SEC1-encoded bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_sec1_bytes(bytes: &[u8]) -> Result<Self> {
         let inner = k256::PublicKey::from_sec1_bytes(bytes).map_err(|_| Error::InvalidKeyFormat)?;
         Ok(Self { inner })
@@ -429,6 +438,7 @@ impl Secp256k1SharedSecret {
     }
 
     /// Derive a key using HKDF.
+    #[must_use = "key derivation can fail; check the Result"]
     pub fn derive_key(&self, info: &[u8], output_len: usize) -> Result<Vec<u8>> {
         use hkdf::Hkdf;
         use sha2::Sha256;

@@ -161,6 +161,7 @@ impl X25519PublicKey {
     }
 
     /// Decode from hex.
+    #[must_use = "encoding can fail; check the Result"]
     pub fn from_hex(hex_str: &str) -> Result<Self> {
         let bytes = hex::decode(hex_str).map_err(|_| Error::InvalidKeyFormat)?;
         if bytes.len() != 32 {
@@ -223,6 +224,7 @@ impl X25519SharedSecret {
     }
 
     /// Derive a key using HKDF.
+    #[must_use = "key derivation can fail; check the Result"]
     pub fn derive_key(&self, info: &[u8], output_len: usize) -> Result<Vec<u8>> {
         use hkdf::Hkdf;
         use sha2::Sha256;

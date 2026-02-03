@@ -108,6 +108,7 @@ impl CudaHasher {
     /// # Arguments
     /// * `max_buffer_size` - Maximum total size of all messages in bytes
     /// * `max_messages` - Maximum number of messages in a batch
+    #[must_use = "construction can fail; check the Result"]
     pub fn new(max_buffer_size: usize, max_messages: u32) -> Result<Self, CudaError> {
         let mut ctx = Blake3CudaContext::default();
         let result = unsafe { blake3_cuda_init(&mut ctx, max_buffer_size, max_messages) };
@@ -126,6 +127,7 @@ impl CudaHasher {
     ///
     /// # Returns
     /// Vector of 32-byte hashes, one per message
+    #[must_use = "batch hashing can fail; check the Result"]
     pub fn hash_batch(&mut self, messages: &[&[u8]]) -> Result<Vec<[u8; 32]>, CudaError> {
         if messages.is_empty() {
             return Ok(Vec::new());
@@ -187,6 +189,7 @@ impl CudaHasher {
     ///
     /// # Returns
     /// Vector of 32-byte hashes
+    #[must_use = "batch hashing can fail; check the Result"]
     pub fn hash_small_batch(
         &mut self,
         messages: &[u8],
@@ -247,14 +250,17 @@ pub struct CudaHasher;
 
 #[cfg(not(feature = "cuda"))]
 impl CudaHasher {
+    #[must_use = "construction can fail; check the Result"]
     pub fn new(_max_buffer_size: usize, _max_messages: u32) -> Result<Self, CudaError> {
         Err(CudaError::NoCudaSupport)
     }
 
+    #[must_use = "batch hashing can fail; check the Result"]
     pub fn hash_batch(&mut self, _messages: &[&[u8]]) -> Result<Vec<[u8; 32]>, CudaError> {
         Err(CudaError::NoCudaSupport)
     }
 
+    #[must_use = "batch hashing can fail; check the Result"]
     pub fn hash_small_batch(
         &mut self,
         _messages: &[u8],

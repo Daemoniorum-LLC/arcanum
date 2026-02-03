@@ -61,6 +61,7 @@ impl X25519MlKem768EncapsulationKey {
     }
 
     /// Import from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() != 32 + 1184 {
             return Err(Error::InvalidKeyLength {
@@ -106,6 +107,7 @@ impl X25519MlKem768Ciphertext {
     }
 
     /// Import from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() != 32 + 1088 {
             return Err(Error::InvalidCiphertext);
@@ -227,6 +229,7 @@ impl X25519MlKem768 {
     }
 
     /// Decapsulate: recover the shared secret from a ciphertext.
+    #[must_use = "decapsulation can fail; check the Result"]
     pub fn decapsulate(
         dk: &X25519MlKem768DecapsulationKey,
         ciphertext: &X25519MlKem768Ciphertext,

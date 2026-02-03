@@ -103,6 +103,7 @@ pub type Poly1305Tag = AuthTag;
 /// let key_vec = Aes256Gcm::generate_key();
 /// let key: Aes256Key = vec_to_array(key_vec)?;
 /// ```
+#[must_use = "this operation can fail; check the Result"]
 pub fn vec_to_array<const N: usize>(vec: Vec<u8>) -> Result<[u8; N]> {
     vec.try_into()
         .map_err(|v: Vec<u8>| Error::InvalidKeyLength {
@@ -120,6 +121,7 @@ pub fn vec_to_array<const N: usize>(vec: Vec<u8>) -> Result<[u8; N]> {
 ///
 /// let nonce: GcmNonce = slice_to_array(&nonce_bytes)?;
 /// ```
+#[must_use = "this operation can fail; check the Result"]
 pub fn slice_to_array<const N: usize>(slice: &[u8]) -> Result<[u8; N]> {
     slice.try_into().map_err(|_| Error::InvalidKeyLength {
         expected: N,

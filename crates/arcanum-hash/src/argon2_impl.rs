@@ -175,16 +175,19 @@ impl PasswordHash for Argon2 {
 
 impl Argon2 {
     /// Hash a password with default (moderate) parameters.
+    #[must_use = "password hashing can fail; check the Result"]
     pub fn hash(password: &[u8]) -> Result<String> {
         Self::hash_password(password, &Argon2Params::default())
     }
 
     /// Verify a password against a hash.
+    #[must_use = "verification result must be checked"]
     pub fn verify(password: &[u8], hash: &str) -> Result<bool> {
         Self::verify_password(password, hash)
     }
 
     /// Derive a 256-bit key from a password.
+    #[must_use = "key derivation can fail; check the Result"]
     pub fn derive_key_256(password: &[u8], salt: &[u8]) -> Result<[u8; 32]> {
         let key = Self::derive_key(password, salt, &Argon2Params::default(), 32)?;
         let mut arr = [0u8; 32];

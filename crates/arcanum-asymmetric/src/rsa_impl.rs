@@ -94,6 +94,7 @@ impl RsaPrivateKey {
 
     /// Decrypt using PKCS#1 v1.5 padding (legacy).
     #[deprecated(note = "Use OAEP instead for new applications")]
+    #[must_use = "decryption can fail; check the Result"]
     pub fn decrypt_pkcs1(&self, ciphertext: &[u8]) -> Result<Vec<u8>> {
         self.inner
             .decrypt(Pkcs1v15Encrypt, ciphertext)
@@ -125,6 +126,7 @@ impl RsaPrivateKey {
     }
 
     /// Export to PKCS#8 DER format.
+    #[must_use = "encoding can fail; check the Result"]
     pub fn to_pkcs8_der(&self) -> Result<Vec<u8>> {
         use pkcs8::EncodePrivateKey;
         let der = self
@@ -135,6 +137,7 @@ impl RsaPrivateKey {
     }
 
     /// Import from PKCS#8 DER format.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_pkcs8_der(bytes: &[u8]) -> Result<Self> {
         use pkcs8::DecodePrivateKey;
         let inner = InnerPrivateKey::from_pkcs8_der(bytes).map_err(|_| Error::InvalidKeyFormat)?;
@@ -142,6 +145,7 @@ impl RsaPrivateKey {
     }
 
     /// Export to PKCS#8 PEM format.
+    #[must_use = "encoding can fail; check the Result"]
     pub fn to_pkcs8_pem(&self) -> Result<String> {
         use pkcs8::EncodePrivateKey;
         use pkcs8::LineEnding;
@@ -153,6 +157,7 @@ impl RsaPrivateKey {
     }
 
     /// Import from PKCS#8 PEM format.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_pkcs8_pem(pem: &str) -> Result<Self> {
         use pkcs8::DecodePrivateKey;
         let inner = InnerPrivateKey::from_pkcs8_pem(pem).map_err(|_| Error::InvalidKeyFormat)?;
@@ -179,6 +184,7 @@ impl RsaPublicKey {
     }
 
     /// Encrypt using OAEP padding (recommended).
+    #[must_use = "encryption can fail; check the Result"]
     pub fn encrypt_oaep(&self, plaintext: &[u8]) -> Result<RsaOaepCiphertext> {
         let padding = Oaep::new::<Sha256>();
         let ciphertext = self
@@ -189,6 +195,7 @@ impl RsaPublicKey {
     }
 
     /// Encrypt using OAEP with SHA-384.
+    #[must_use = "encryption can fail; check the Result"]
     pub fn encrypt_oaep_sha384(&self, plaintext: &[u8]) -> Result<RsaOaepCiphertext> {
         let padding = Oaep::new::<Sha384>();
         let ciphertext = self
@@ -199,6 +206,7 @@ impl RsaPublicKey {
     }
 
     /// Encrypt using OAEP with SHA-512.
+    #[must_use = "encryption can fail; check the Result"]
     pub fn encrypt_oaep_sha512(&self, plaintext: &[u8]) -> Result<RsaOaepCiphertext> {
         let padding = Oaep::new::<Sha512>();
         let ciphertext = self
@@ -210,6 +218,7 @@ impl RsaPublicKey {
 
     /// Encrypt using PKCS#1 v1.5 padding (legacy).
     #[deprecated(note = "Use OAEP instead for new applications")]
+    #[must_use = "encryption can fail; check the Result"]
     pub fn encrypt_pkcs1(&self, plaintext: &[u8]) -> Result<RsaPkcs1Ciphertext> {
         let ciphertext = self
             .inner
@@ -245,6 +254,7 @@ impl RsaPublicKey {
     }
 
     /// Export to SPKI DER format.
+    #[must_use = "encoding can fail; check the Result"]
     pub fn to_spki_der(&self) -> Result<Vec<u8>> {
         use spki::EncodePublicKey;
         let der = self
@@ -255,6 +265,7 @@ impl RsaPublicKey {
     }
 
     /// Import from SPKI DER format.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_spki_der(bytes: &[u8]) -> Result<Self> {
         use spki::DecodePublicKey;
         let inner =
@@ -263,6 +274,7 @@ impl RsaPublicKey {
     }
 
     /// Export to SPKI PEM format.
+    #[must_use = "encoding can fail; check the Result"]
     pub fn to_spki_pem(&self) -> Result<String> {
         use pkcs8::LineEnding;
         use spki::EncodePublicKey;
@@ -274,6 +286,7 @@ impl RsaPublicKey {
     }
 
     /// Import from SPKI PEM format.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_spki_pem(pem: &str) -> Result<Self> {
         use spki::DecodePublicKey;
         let inner =
@@ -304,6 +317,7 @@ pub struct RsaKeyPair {
 
 impl RsaKeyPair {
     /// Generate a new RSA key pair.
+    #[must_use = "key generation can fail; check the Result"]
     pub fn generate(bits: usize) -> Result<Self> {
         let private = RsaPrivateKey::generate(bits)?;
         let public = private.public_key();
@@ -311,6 +325,7 @@ impl RsaKeyPair {
     }
 
     /// Generate with a predefined key size.
+    #[must_use = "key generation can fail; check the Result"]
     pub fn generate_with_size(size: RsaKeySize) -> Result<Self> {
         Self::generate(size.bits())
     }

@@ -69,6 +69,7 @@ impl ProactiveRefresh {
     ///
     /// # Errors
     /// Returns error if parameters are invalid
+    #[must_use = "this operation can fail; check the Result"]
     pub fn refresh(shares: &[Share], threshold: usize) -> Result<Vec<Share>> {
         if shares.is_empty() {
             return Err(ThresholdError::InsufficientShares {
@@ -134,6 +135,7 @@ impl ProactiveRefresh {
     ///
     /// # Returns
     /// Refresh shares to distribute to each participant
+    #[must_use = "this operation can fail; check the Result"]
     pub fn generate_refresh_shares(
         threshold: usize,
         participant_indices: &[u8],
@@ -185,6 +187,7 @@ impl ProactiveRefresh {
     ///
     /// # Returns
     /// Updated share with all contributions applied
+    #[must_use = "this operation can fail; check the Result"]
     pub fn apply_refresh(current_share: &Share, contributions: &[&Share]) -> Result<Share> {
         // All contributions must be for the same index as current_share
         for contrib in contributions {

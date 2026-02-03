@@ -103,6 +103,7 @@ pub type HkdfSha512 = Hkdf<Sha512>;
 /// Convenience functions for HKDF-SHA256.
 impl Hkdf<Sha256> {
     /// Derive a 256-bit key.
+    #[must_use = "key derivation can fail; check the Result"]
     pub fn derive_256(ikm: &[u8], salt: Option<&[u8]>, info: Option<&[u8]>) -> Result<[u8; 32]> {
         Self::derive_array(ikm, salt, info)
     }
@@ -110,6 +111,7 @@ impl Hkdf<Sha256> {
     /// Derive multiple keys from the same IKM.
     ///
     /// Each key is derived with a different info string.
+    #[must_use = "key derivation can fail; check the Result"]
     pub fn derive_multiple<const N: usize>(
         ikm: &[u8],
         salt: Option<&[u8]>,

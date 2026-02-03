@@ -61,6 +61,7 @@ impl DiscreteLogProof {
     }
 
     /// Verify the proof.
+    #[must_use = "verification result must be checked"]
     pub fn verify(&self, public_key: &RistrettoPoint) -> Result<bool> {
         let g = RISTRETTO_BASEPOINT_POINT;
 
@@ -98,6 +99,7 @@ impl DiscreteLogProof {
     }
 
     /// Deserialize from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() != 64 {
             return Err(Error::InvalidParameter(
@@ -179,6 +181,7 @@ impl EqualityProof {
     }
 
     /// Verify the equality proof.
+    #[must_use = "verification result must be checked"]
     pub fn verify(
         &self,
         generator1: &RistrettoPoint,
@@ -317,6 +320,7 @@ impl SchnorrProofBuilder {
     }
 
     /// Verify a proof.
+    #[must_use = "verification result must be checked"]
     pub fn verify(&self, proof: &SchnorrProof) -> Result<bool> {
         if proof.commitments.len() != self.generators.len() {
             return Err(Error::InvalidParameter(

@@ -26,11 +26,13 @@ impl Hex {
     }
 
     /// Decode hex string to bytes.
+    #[must_use = "encoding can fail; check the Result"]
     pub fn decode(s: &str) -> Result<Vec<u8>> {
         hex::decode(s).map_err(|e| Error::EncodingError(e.to_string()))
     }
 
     /// Decode hex string into a fixed-size array.
+    #[must_use = "encoding can fail; check the Result"]
     pub fn decode_array<const N: usize>(s: &str) -> Result<[u8; N]> {
         let bytes = Self::decode(s)?;
         if bytes.len() != N {
@@ -65,6 +67,7 @@ impl Base64 {
     }
 
     /// Decode standard Base64 to bytes.
+    #[must_use = "encoding can fail; check the Result"]
     pub fn decode(s: &str) -> Result<Vec<u8>> {
         <base64ct::Base64 as base64ct::Encoding>::decode_vec(s)
             .map_err(|e| Error::EncodingError(e.to_string()))
@@ -76,6 +79,7 @@ impl Base64 {
     }
 
     /// Decode URL-safe Base64 to bytes.
+    #[must_use = "encoding can fail; check the Result"]
     pub fn decode_url(s: &str) -> Result<Vec<u8>> {
         <base64ct::Base64UrlUnpadded as base64ct::Encoding>::decode_vec(s)
             .map_err(|e| Error::EncodingError(e.to_string()))
@@ -109,6 +113,7 @@ impl Base32 {
     }
 
     /// Decode Base32 to bytes.
+    #[must_use = "encoding can fail; check the Result"]
     pub fn decode(s: &str) -> Result<Vec<u8>> {
         <base32ct::Base32 as base32ct::Encoding>::decode_vec(s)
             .map_err(|e| Error::EncodingError(e.to_string()))
@@ -120,6 +125,7 @@ impl Base32 {
     }
 
     /// Decode Base32 without padding.
+    #[must_use = "encoding can fail; check the Result"]
     pub fn decode_unpadded(s: &str) -> Result<Vec<u8>> {
         <base32ct::Base32Unpadded as base32ct::Encoding>::decode_vec(s)
             .map_err(|e| Error::EncodingError(e.to_string()))
@@ -140,6 +146,7 @@ impl Base58 {
     }
 
     /// Decode Base58 to bytes.
+    #[must_use = "encoding can fail; check the Result"]
     pub fn decode(s: &str) -> Result<Vec<u8>> {
         bs58::decode(s)
             .into_vec()
@@ -159,6 +166,7 @@ impl Base58 {
     }
 
     /// Decode with checksum verification (Base58Check - Bitcoin style).
+    #[must_use = "encoding can fail; check the Result"]
     pub fn decode_check(s: &str) -> Result<Vec<u8>> {
         use blake3::hash;
         let decoded = bs58::decode(s)
@@ -191,18 +199,21 @@ pub struct Bech32;
 
 impl Bech32 {
     /// Encode with Bech32.
+    #[must_use = "encoding can fail; check the Result"]
     pub fn encode(hrp: &str, data: &[u8]) -> Result<String> {
         let hrp = bech32::Hrp::parse(hrp).map_err(|e| Error::EncodingError(e.to_string()))?;
         bech32::encode::<bech32::Bech32>(hrp, data).map_err(|e| Error::EncodingError(e.to_string()))
     }
 
     /// Decode Bech32.
+    #[must_use = "encoding can fail; check the Result"]
     pub fn decode(s: &str) -> Result<(String, Vec<u8>)> {
         let (hrp, data) = bech32::decode(s).map_err(|e| Error::EncodingError(e.to_string()))?;
         Ok((hrp.to_string(), data))
     }
 
     /// Encode with Bech32m (BIP-350).
+    #[must_use = "encoding can fail; check the Result"]
     pub fn encode_m(hrp: &str, data: &[u8]) -> Result<String> {
         let hrp = bech32::Hrp::parse(hrp).map_err(|e| Error::EncodingError(e.to_string()))?;
         bech32::encode::<bech32::Bech32m>(hrp, data)
@@ -239,6 +250,7 @@ impl Pem {
     }
 
     /// Decode PEM, returning the label and data.
+    #[must_use = "encoding can fail; check the Result"]
     pub fn decode(pem: &str) -> Result<(String, Vec<u8>)> {
         let pem = pem.trim();
 
@@ -286,6 +298,7 @@ impl Multibase {
     }
 
     /// Encode with a specific base.
+    #[must_use = "encoding can fail; check the Result"]
     pub fn encode_with_base(base: char, data: &[u8]) -> Result<String> {
         let base =
             multibase::Base::from_code(base).map_err(|e| Error::EncodingError(e.to_string()))?;
@@ -293,6 +306,7 @@ impl Multibase {
     }
 
     /// Decode multibase string.
+    #[must_use = "encoding can fail; check the Result"]
     pub fn decode(s: &str) -> Result<Vec<u8>> {
         let (_, data) = multibase::decode(s).map_err(|e| Error::EncodingError(e.to_string()))?;
         Ok(data)

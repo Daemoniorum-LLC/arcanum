@@ -48,6 +48,7 @@ impl MlKem768DecapsulationKey {
     pub const SIZE: usize = 2400;
 
     /// Create from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() != Self::SIZE {
             return Err(Error::InvalidKeyLength {
@@ -116,6 +117,7 @@ impl MlKem768EncapsulationKey {
     pub const SIZE: usize = 1184;
 
     /// Create from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() != Self::SIZE {
             return Err(Error::InvalidKeyLength {
@@ -162,6 +164,7 @@ impl MlKem768Ciphertext {
     pub const SIZE: usize = 1088;
 
     /// Create from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() != Self::SIZE {
             return Err(Error::InvalidCiphertext);
@@ -191,6 +194,7 @@ pub struct MlKem768SharedSecret {
 
 impl MlKem768SharedSecret {
     /// Create from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         let arr: [u8; 32] = bytes.try_into().map_err(|_| Error::InvalidKeyLength {
             expected: 32,
@@ -309,6 +313,7 @@ impl MlKem512 {
     }
 
     /// Encapsulate to produce ciphertext and shared secret.
+    #[must_use = "encapsulation can fail; check the Result"]
     pub fn encapsulate(ek_bytes: &[u8]) -> Result<(Vec<u8>, [u8; 32])> {
         let arr: [u8; 800] = ek_bytes.try_into().map_err(|_| Error::InvalidKeyFormat)?;
         let ek = EncapsulationKey::<MlKem512Params>::from_bytes(&arr.into());
@@ -321,6 +326,7 @@ impl MlKem512 {
     }
 
     /// Decapsulate to recover shared secret.
+    #[must_use = "decapsulation can fail; check the Result"]
     pub fn decapsulate(dk_bytes: &[u8], ct_bytes: &[u8]) -> Result<[u8; 32]> {
         let dk_arr: [u8; 1632] = dk_bytes.try_into().map_err(|_| Error::InvalidKeyFormat)?;
         let dk = DecapsulationKey::<MlKem512Params>::from_bytes(&dk_arr.into());
@@ -360,6 +366,7 @@ impl MlKem1024 {
     }
 
     /// Encapsulate to produce ciphertext and shared secret.
+    #[must_use = "encapsulation can fail; check the Result"]
     pub fn encapsulate(ek_bytes: &[u8]) -> Result<(Vec<u8>, [u8; 32])> {
         let arr: [u8; 1568] = ek_bytes.try_into().map_err(|_| Error::InvalidKeyFormat)?;
         let ek = EncapsulationKey::<MlKem1024Params>::from_bytes(&arr.into());
@@ -372,6 +379,7 @@ impl MlKem1024 {
     }
 
     /// Decapsulate to recover shared secret.
+    #[must_use = "decapsulation can fail; check the Result"]
     pub fn decapsulate(dk_bytes: &[u8], ct_bytes: &[u8]) -> Result<[u8; 32]> {
         let dk_arr: [u8; 3168] = dk_bytes.try_into().map_err(|_| Error::InvalidKeyFormat)?;
         let dk = DecapsulationKey::<MlKem1024Params>::from_bytes(&dk_arr.into());

@@ -73,6 +73,7 @@ pub struct VerifyingShare {
 
 impl VerifyingShare {
     /// Create from FROST verifying share.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_frost(id: frost::Identifier, share: &frost::keys::VerifyingShare) -> Result<Self> {
         Ok(Self {
             identifier_bytes: id.serialize(),
@@ -102,6 +103,7 @@ pub struct GroupVerifyingKey {
 
 impl GroupVerifyingKey {
     /// Create from FROST verifying key.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_frost(key: &frost::VerifyingKey) -> Result<Self> {
         Ok(Self {
             bytes: key
@@ -116,6 +118,7 @@ impl GroupVerifyingKey {
     }
 
     /// Convert to FROST verifying key.
+    #[must_use = "this operation can fail; check the Result"]
     pub fn to_frost(&self) -> Result<frost::VerifyingKey> {
         frost::VerifyingKey::deserialize(&self.bytes)
             .map_err(|e| ThresholdError::InternalError(e.to_string()))
@@ -146,11 +149,13 @@ impl FrostSigner {
     }
 
     /// Get the group verifying key.
+    #[must_use = "this operation can fail; check the Result"]
     pub fn group_verifying_key(&self) -> Result<GroupVerifyingKey> {
         GroupVerifyingKey::from_frost(self.key_package.verifying_key())
     }
 
     /// Generate round 1 commitment for signing.
+    #[must_use = "signing can fail; check the Result"]
     pub fn round1(&self) -> Result<(SigningNonces, SigningCommitments)> {
         let mut rng = rand::rngs::OsRng;
         let (nonces, commitments) =
@@ -163,6 +168,7 @@ impl FrostSigner {
     }
 
     /// Generate signature share in round 2.
+    #[must_use = "signing can fail; check the Result"]
     pub fn round2(
         &self,
         _message: &[u8],
@@ -217,6 +223,7 @@ pub struct SigningPackage {
 
 impl SigningPackage {
     /// Create a signing package from commitments.
+    #[must_use = "construction can fail; check the Result"]
     pub fn new(commitments: &[SigningCommitments], message: &[u8]) -> Result<Self> {
         let mut commitment_map = BTreeMap::new();
 
@@ -264,6 +271,7 @@ pub struct FrostVerifier {
 
 impl FrostVerifier {
     /// Create a verifier from the group verifying key.
+    #[must_use = "construction can fail; check the Result"]
     pub fn new(key: &GroupVerifyingKey) -> Result<Self> {
         Ok(Self {
             verifying_key: key.to_frost()?,
@@ -271,6 +279,7 @@ impl FrostVerifier {
     }
 
     /// Aggregate signature shares into a complete signature.
+    #[must_use = "signing can fail; check the Result"]
     pub fn aggregate(
         &self,
         signing_package: &SigningPackage,
@@ -320,6 +329,7 @@ impl PublicKeyPackage {
     }
 
     /// Get the group verifying key.
+    #[must_use = "this operation can fail; check the Result"]
     pub fn group_verifying_key(&self) -> Result<GroupVerifyingKey> {
         GroupVerifyingKey::from_frost(self.inner.verifying_key())
     }
@@ -357,6 +367,7 @@ impl core::fmt::Debug for Signature {
 /// Generate key shares using a trusted dealer.
 ///
 /// For production, use DKG instead of trusted dealer.
+#[must_use = "key generation can fail; check the Result"]
 pub fn trusted_dealer_keygen(
     threshold: u16,
     total: u16,

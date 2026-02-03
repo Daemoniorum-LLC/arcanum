@@ -90,6 +90,7 @@ pub fn random_range(max: u64) -> u64 {
 
 /// Fill a buffer with random bytes, returning an error on failure.
 #[cfg(feature = "std")]
+#[must_use = "random generation can fail; check the Result"]
 pub fn try_fill_bytes(dest: &mut [u8]) -> Result<()> {
     getrandom::getrandom(dest).map_err(|_| Error::RngFailed)
 }

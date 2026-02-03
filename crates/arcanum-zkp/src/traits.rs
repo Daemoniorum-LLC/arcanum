@@ -10,9 +10,11 @@ pub trait ZeroKnowledgeProof: Sized {
     type Witness;
 
     /// Create a proof.
+    #[must_use = "proof generation can fail; check the Result"]
     fn prove(statement: &Self::Statement, witness: &Self::Witness) -> Result<Self>;
 
     /// Verify a proof.
+    #[must_use = "verification result must be checked"]
     fn verify(&self, statement: &Self::Statement) -> Result<bool>;
 }
 
@@ -48,9 +50,11 @@ pub trait RangeProofTrait: Sized {
     type Commitment;
 
     /// Prove that a committed value is in range [0, 2^n).
+    #[must_use = "proof generation can fail; check the Result"]
     fn prove(value: u64, blinding: &[u8], n_bits: usize) -> Result<(Self::Commitment, Self)>;
 
     /// Verify a range proof.
+    #[must_use = "verification result must be checked"]
     fn verify(&self, commitment: &Self::Commitment, n_bits: usize) -> Result<bool>;
 }
 

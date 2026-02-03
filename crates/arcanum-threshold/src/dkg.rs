@@ -56,6 +56,7 @@ impl DkgParticipant {
     /// * `id` - Participant identifier (1-based, must be <= total)
     /// * `threshold` - Minimum number of participants needed to sign
     /// * `total` - Total number of participants
+    #[must_use = "construction can fail; check the Result"]
     pub fn new(id: u16, threshold: u16, total: u16) -> Result<Self> {
         if id == 0 || id > total {
             return Err(ThresholdError::InvalidParticipant(id));
@@ -89,6 +90,7 @@ impl DkgParticipant {
     ///
     /// Generates a secret polynomial and returns the public package
     /// to broadcast to all participants.
+    #[must_use = "this operation can fail; check the Result"]
     pub fn round1(&mut self) -> Result<DkgRound1> {
         let mut rng = rand::rngs::OsRng;
 
@@ -108,6 +110,7 @@ impl DkgParticipant {
     ///
     /// # Arguments
     /// * `round1_packages` - Round 1 packages from all participants (including self)
+    #[must_use = "this operation can fail; check the Result"]
     pub fn round2(&mut self, round1_packages: &[DkgRound1]) -> Result<Vec<DkgRound2>> {
         let secret_package = self
             .round1_secret
@@ -142,6 +145,7 @@ impl DkgParticipant {
     /// # Arguments
     /// * `round1_packages` - Round 1 packages from all participants
     /// * `round2_packages` - Round 2 packages addressed to this participant
+    #[must_use = "this operation can fail; check the Result"]
     pub fn finalize(
         &mut self,
         round1_packages: &[DkgRound1],
@@ -274,6 +278,7 @@ impl core::fmt::Debug for DkgRound2 {
 ///
 /// This is a helper for testing that simulates the full DKG protocol.
 /// In production, participants would communicate over a network.
+#[must_use = "this operation can fail; check the Result"]
 pub fn run_dkg(
     threshold: u16,
     total: u16,

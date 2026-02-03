@@ -21,6 +21,7 @@ pub trait SigningKey: Clone + Send + Sync {
     fn generate() -> Self;
 
     /// Create from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     fn from_bytes(bytes: &[u8]) -> Result<Self>;
 
     /// Export to bytes.
@@ -33,6 +34,7 @@ pub trait SigningKey: Clone + Send + Sync {
     fn sign(&self, message: &[u8]) -> Self::Signature;
 
     /// Sign a pre-hashed message (for large messages).
+    #[must_use = "signing can fail; check the Result"]
     fn sign_prehashed(&self, hash: &[u8]) -> Result<Self::Signature>;
 }
 
@@ -47,15 +49,18 @@ pub trait VerifyingKey: Clone + Send + Sync + PartialEq + Eq {
     const KEY_SIZE: usize;
 
     /// Create from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     fn from_bytes(bytes: &[u8]) -> Result<Self>;
 
     /// Export to bytes.
     fn to_bytes(&self) -> Vec<u8>;
 
     /// Verify a signature.
+    #[must_use = "verification result must be checked"]
     fn verify(&self, message: &[u8], signature: &Self::Signature) -> Result<()>;
 
     /// Verify a pre-hashed message.
+    #[must_use = "verification result must be checked"]
     fn verify_prehashed(&self, hash: &[u8], signature: &Self::Signature) -> Result<()>;
 
     /// Encode as hex string.
@@ -64,6 +69,7 @@ pub trait VerifyingKey: Clone + Send + Sync + PartialEq + Eq {
     }
 
     /// Decode from hex string.
+    #[must_use = "encoding can fail; check the Result"]
     fn from_hex(s: &str) -> Result<Self>
     where
         Self: Sized,
@@ -80,6 +86,7 @@ pub trait Signature: Clone + Send + Sync {
     const SIZE: usize;
 
     /// Create from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     fn from_bytes(bytes: &[u8]) -> Result<Self>;
 
     /// Export to bytes.
@@ -91,6 +98,7 @@ pub trait Signature: Clone + Send + Sync {
     }
 
     /// Decode from hex string.
+    #[must_use = "encoding can fail; check the Result"]
     fn from_hex(s: &str) -> Result<Self>
     where
         Self: Sized,
@@ -111,5 +119,6 @@ pub trait BatchVerifier {
     /// Verify multiple signatures in batch.
     ///
     /// This is more efficient than verifying each signature individually.
+    #[must_use = "verification result must be checked"]
     fn verify_batch(items: &[(&Self::VerifyingKey, &[u8], &Self::Signature)]) -> Result<()>;
 }

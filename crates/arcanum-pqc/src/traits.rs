@@ -30,6 +30,7 @@ pub trait KeyEncapsulation {
     fn encapsulate(ek: &Self::EncapsulationKey) -> (Self::Ciphertext, Self::SharedSecret);
 
     /// Decapsulate: recover the shared secret from a ciphertext.
+    #[must_use = "decapsulation can fail; check the Result"]
     fn decapsulate(
         dk: &Self::DecapsulationKey,
         ciphertext: &Self::Ciphertext,
@@ -57,6 +58,7 @@ pub trait PostQuantumSignature {
     fn sign(sk: &Self::SigningKey, message: &[u8]) -> Self::Signature;
 
     /// Verify a signature.
+    #[must_use = "verification result must be checked"]
     fn verify(vk: &Self::VerifyingKey, message: &[u8], signature: &Self::Signature) -> Result<()>;
 }
 

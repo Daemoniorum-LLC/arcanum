@@ -42,6 +42,7 @@ impl HashOutput {
     }
 
     /// Parse from hex string.
+    #[must_use = "encoding can fail; check the Result"]
     pub fn from_hex(s: &str) -> Result<Self> {
         let bytes =
             hex::decode(s).map_err(|e| arcanum_core::error::Error::ParseError(e.to_string()))?;
@@ -175,6 +176,7 @@ pub trait KeyDerivation {
     /// * `salt` - Optional salt (recommended)
     /// * `info` - Optional context/application-specific info
     /// * `output_len` - Desired output length in bytes
+    #[must_use = "key derivation can fail; check the Result"]
     fn derive(
         ikm: &[u8],
         salt: Option<&[u8]>,
@@ -183,6 +185,7 @@ pub trait KeyDerivation {
     ) -> Result<Vec<u8>>;
 
     /// Derive into a fixed-size array.
+    #[must_use = "key derivation can fail; check the Result"]
     fn derive_array<const N: usize>(
         ikm: &[u8],
         salt: Option<&[u8]>,
@@ -205,12 +208,15 @@ pub trait PasswordHash {
     /// Hash a password for storage.
     ///
     /// Returns a string suitable for storage (includes salt and parameters).
+    #[must_use = "password hashing can fail; check the Result"]
     fn hash_password(password: &[u8], params: &Self::Params) -> Result<String>;
 
     /// Verify a password against a stored hash.
+    #[must_use = "verification result must be checked"]
     fn verify_password(password: &[u8], hash: &str) -> Result<bool>;
 
     /// Derive key material from password.
+    #[must_use = "key derivation can fail; check the Result"]
     fn derive_key(
         password: &[u8],
         salt: &[u8],

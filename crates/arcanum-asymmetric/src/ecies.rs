@@ -58,6 +58,7 @@ impl EciesCiphertext {
     }
 
     /// Deserialize from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.is_empty() {
             return Err(Error::InvalidCiphertext);
@@ -108,6 +109,7 @@ impl EciesP256 {
     const HKDF_INFO: &'static [u8] = b"ECIES-P256-AES256-GCM";
 
     /// Encrypt a message to a recipient's public key.
+    #[must_use = "encryption can fail; check the Result"]
     pub fn encrypt(recipient_public: &P256PublicKey, plaintext: &[u8]) -> Result<EciesCiphertext> {
         // Generate ephemeral key pair
         let ephemeral_secret = P256SecretKey::generate();
@@ -195,6 +197,7 @@ impl EciesP384 {
     const HKDF_INFO: &'static [u8] = b"ECIES-P384-AES256-GCM";
 
     /// Encrypt a message to a recipient's public key.
+    #[must_use = "encryption can fail; check the Result"]
     pub fn encrypt(recipient_public: &P384PublicKey, plaintext: &[u8]) -> Result<EciesCiphertext> {
         // Generate ephemeral key pair
         let ephemeral_secret = P384SecretKey::generate();
@@ -282,6 +285,7 @@ impl EciesSecp256k1 {
     const HKDF_INFO: &'static [u8] = b"ECIES-secp256k1-AES256-GCM";
 
     /// Encrypt a message to a recipient's public key.
+    #[must_use = "encryption can fail; check the Result"]
     pub fn encrypt(
         recipient_public: &Secp256k1PublicKey,
         plaintext: &[u8],

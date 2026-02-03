@@ -57,6 +57,7 @@ impl PedersenOpening {
     }
 
     /// Create from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8; 32]) -> Result<Self> {
         let scalar = Scalar::from_canonical_bytes(*bytes);
         if scalar.is_none().into() {
@@ -145,6 +146,7 @@ impl PedersenCommitment {
     }
 
     /// Decompress from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8; 32]) -> Result<Self> {
         let compressed =
             CompressedRistretto::from_slice(bytes).map_err(|_| Error::InvalidKeyFormat)?;
@@ -158,6 +160,7 @@ impl PedersenCommitment {
     }
 
     /// Decode from hex.
+    #[must_use = "encoding can fail; check the Result"]
     pub fn from_hex(hex_str: &str) -> Result<Self> {
         let bytes = hex::decode(hex_str).map_err(|_| Error::InvalidKeyFormat)?;
         if bytes.len() != 32 {

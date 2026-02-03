@@ -50,6 +50,7 @@ impl Share {
     }
 
     /// Deserialize from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.is_empty() {
             return Err(ThresholdError::InvalidShareFormat);

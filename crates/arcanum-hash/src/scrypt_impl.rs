@@ -152,11 +152,13 @@ impl PasswordHash for Scrypt {
 
 impl Scrypt {
     /// Hash a password with default (moderate) parameters.
+    #[must_use = "password hashing can fail; check the Result"]
     pub fn hash(password: &[u8]) -> Result<String> {
         Self::hash_password(password, &ScryptParams::default())
     }
 
     /// Verify a password against a hash.
+    #[must_use = "verification result must be checked"]
     pub fn verify(password: &[u8], hash: &str) -> Result<bool> {
         Self::verify_password(password, hash)
     }

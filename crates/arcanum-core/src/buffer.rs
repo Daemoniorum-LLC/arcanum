@@ -48,6 +48,7 @@ impl<const N: usize> SecretBuffer<N> {
     }
 
     /// Create from a slice, returning error if length doesn't match.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_slice(slice: &[u8]) -> Result<Self> {
         if slice.len() != N {
             return Err(Error::InvalidParameter(format!(

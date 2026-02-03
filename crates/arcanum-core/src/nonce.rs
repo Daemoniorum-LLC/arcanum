@@ -38,6 +38,7 @@ impl<const N: usize> Nonce<N> {
     }
 
     /// Create from a slice, returning error if length doesn't match.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_slice(slice: &[u8]) -> Result<Self> {
         if slice.len() != N {
             return Err(Error::InvalidNonceLength {
@@ -81,6 +82,7 @@ impl<const N: usize> Nonce<N> {
     /// Increment the nonce (for counter-based nonces).
     ///
     /// Returns `Err` if overflow would occur.
+    #[must_use = "this operation can fail; check the Result"]
     pub fn increment(&mut self) -> Result<()> {
         for byte in self.bytes.iter_mut().rev() {
             if *byte == 255 {
@@ -213,6 +215,7 @@ impl<const N: usize> NonceGenerator<N> {
     }
 
     /// Generate the next nonce.
+    #[must_use = "key generation can fail; check the Result"]
     pub fn generate(&self) -> Result<Nonce<N>> {
         // Check limit and always increment count
         let count = self.generated_count.fetch_add(1, Ordering::SeqCst);
