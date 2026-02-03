@@ -4,7 +4,7 @@
 **Created:** 2026-01-20
 **Updated:** 2026-02-03
 **Methodology:** Test-Driven Development (TDD)
-**Status:** Phase 1 Complete — Phase 2 Complete — Phase 3 In Progress
+**Status:** Phase 1 Complete — Phase 2 Complete — Phase 3 Complete — Phase 4 Ongoing
 
 ---
 
@@ -785,7 +785,7 @@ impl MlKem512 {
 **Timeline:** Before stable release
 **Dependencies:** Phase 2 complete
 
-### 3.1 Integrate CUDA BLAKE3 Build System
+### 3.1 ~~Integrate CUDA BLAKE3 Build System~~ ✅ COMPLETE
 
 **Issue:** CUDA BLAKE3 batch hashing code exists (801 lines kernel + 298 lines FFI) but
 cannot be compiled or linked — build.rs expects a pre-built `libblake3_cuda.so` that
@@ -793,9 +793,13 @@ doesn't exist and there is no automated nvcc invocation.
 
 **Location:** `crates/arcanum-primitives/src/blake3_cuda.cu`, `blake3_cuda_ffi.rs`, `build.rs`
 
-**Current state:** Rust FFI wrapper and CUDA kernel are complete and correct. Feature
-gate (`cuda = ["std"]`) and module gating (`#[cfg(feature = "cuda")]`) are in place.
-Benchmarks exist in `primitives_bench.rs`. The only gap is build automation.
+**Resolution:** Rewrote `build.rs` to automate nvcc compilation:
+- Automatically invokes `nvcc` when the `cuda` feature is enabled
+- Supports `CUDA_ARCH` env var for GPU architecture override (defaults to `sm_75`)
+- Falls back to pre-built `libblake3_cuda.so` in `src/` if nvcc fails
+- Emits warnings (never hard errors) when CUDA toolkit is not available
+- Re-runs on `.cu` source changes via `cargo:rerun-if-changed`
+- Outputs compiled library to Cargo's `OUT_DIR` (standard build directory)
 
 #### TDD Steps
 
@@ -974,11 +978,21 @@ alloc = []  # For Vec, String without full std
 
 ---
 
-### 3.4 Remove Dead Feature Flags
+### 3.4 ~~Remove Dead Feature Flags~~ ✅ COMPLETE
 
 **Issue:** Features defined but never used
 
 **Location:** Various Cargo.toml files
+
+**Resolution:** Removed 8 dead features across 4 crates:
+- `arcanum-hash`: Removed `pbkdf2` (no implementation), `hardware-accel` (no cfg gates),
+  `backend-rustcrypto` (empty, never used). Also removed unused `pbkdf2` dependency.
+- `arcanum-symmetric`: Removed `legacy` (no blowfish/twofish/cast5 implementations),
+  `hardware-accel` (no cfg gates), `backend-rustcrypto` (empty, never used).
+  Also removed unused `blowfish`, `twofish`, `cast5` dependencies.
+- `arcanum-core`: Removed `hazmat` (defined but never gated).
+- `arcanum-zkp`: Removed `serde` (optional dep activated but never used in code).
+- Workspace `Cargo.toml`: Cleaned up `pbkdf2`, `blowfish`, `twofish`, `cast5` entries.
 
 #### TDD Steps
 
@@ -1077,11 +1091,11 @@ proptest! {
 - [x] Remove duplicate errors.rs in arcanum-threshold
 - [x] Add FIPS 203/204/205 test vectors
 
-### Phase 3: Code Quality (SHOULD before stable release) — IN PROGRESS
-- [ ] Integrate CUDA BLAKE3 build system (was: remove CUDA code)
+### Phase 3: Code Quality (SHOULD before stable release) — ✅ COMPLETE
+- [x] Integrate CUDA BLAKE3 build system (automated nvcc in build.rs)
 - [x] Archive/remove arcanum-platform directory
 - [x] Add no_std gates to all crates
-- [ ] Remove dead feature flags
+- [x] Remove dead feature flags (8 features across 4 crates)
 
 ### Phase 4: Test Coverage (ONGOING)
 - [ ] Add error path tests

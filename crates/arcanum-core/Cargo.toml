@@ -51,9 +51,6 @@ async = ["dep:async-trait"]
 # Serialization
 serde = ["dep:serde", "secrecy/serde"]
 
-# Hazardous materials (raw primitives)
-hazmat = []
-
 [dependencies]
 # ═══════════════════════════════════════════════════════════════════════════════
 # Category A: Always required (no_std compatible)
