@@ -313,4 +313,217 @@ mod tests {
         let mlkem = AlgorithmRegistry::get(AlgorithmId::MlKem768).unwrap();
         assert!(mlkem.is_post_quantum());
     }
+
+    #[test]
+    fn test_algorithm_id_from_u16_roundtrip_all_variants() {
+        // Symmetric ciphers (1-5)
+        let symmetric = [
+            (1u16, AlgorithmId::Aes256Gcm),
+            (2, AlgorithmId::Aes128Gcm),
+            (3, AlgorithmId::Aes256GcmSiv),
+            (4, AlgorithmId::ChaCha20Poly1305),
+            (5, AlgorithmId::XChaCha20Poly1305),
+        ];
+        for (val, expected) in &symmetric {
+            let id = AlgorithmId::from_u16(*val).unwrap();
+            assert_eq!(id, *expected, "from_u16({}) should return {:?}", val, expected);
+            assert_eq!(*val, id as u16, "roundtrip failed for {:?}", expected);
+        }
+
+        // Hash functions (16-19)
+        let hashes = [
+            (16u16, AlgorithmId::Sha256),
+            (17, AlgorithmId::Sha512),
+            (18, AlgorithmId::Blake3),
+            (19, AlgorithmId::Sha3_256),
+        ];
+        for (val, expected) in &hashes {
+            let id = AlgorithmId::from_u16(*val).unwrap();
+            assert_eq!(id, *expected, "from_u16({}) should return {:?}", val, expected);
+            assert_eq!(*val, id as u16, "roundtrip failed for {:?}", expected);
+        }
+
+        // Asymmetric (32-35)
+        let asymmetric = [
+            (32u16, AlgorithmId::X25519),
+            (33, AlgorithmId::Ed25519),
+            (34, AlgorithmId::EcdsaP256),
+            (35, AlgorithmId::EcdsaP384),
+        ];
+        for (val, expected) in &asymmetric {
+            let id = AlgorithmId::from_u16(*val).unwrap();
+            assert_eq!(id, *expected, "from_u16({}) should return {:?}", val, expected);
+            assert_eq!(*val, id as u16, "roundtrip failed for {:?}", expected);
+        }
+
+        // Post-quantum (64-67)
+        let pqc = [
+            (64u16, AlgorithmId::MlKem768),
+            (65, AlgorithmId::MlKem1024),
+            (66, AlgorithmId::MlDsa65),
+            (67, AlgorithmId::MlDsa87),
+        ];
+        for (val, expected) in &pqc {
+            let id = AlgorithmId::from_u16(*val).unwrap();
+            assert_eq!(id, *expected, "from_u16({}) should return {:?}", val, expected);
+            assert_eq!(*val, id as u16, "roundtrip failed for {:?}", expected);
+        }
+
+        // Hybrid (96-97)
+        let hybrid = [
+            (96u16, AlgorithmId::HybridKem),
+            (97, AlgorithmId::CompositeSignature),
+        ];
+        for (val, expected) in &hybrid {
+            let id = AlgorithmId::from_u16(*val).unwrap();
+            assert_eq!(id, *expected, "from_u16({}) should return {:?}", val, expected);
+            assert_eq!(*val, id as u16, "roundtrip failed for {:?}", expected);
+        }
+
+        // Deprecated (128-129)
+        let deprecated = [
+            (128u16, AlgorithmId::TripleDes),
+            (129, AlgorithmId::Sha1),
+        ];
+        for (val, expected) in &deprecated {
+            let id = AlgorithmId::from_u16(*val).unwrap();
+            assert_eq!(id, *expected, "from_u16({}) should return {:?}", val, expected);
+            assert_eq!(*val, id as u16, "roundtrip failed for {:?}", expected);
+        }
+    }
+
+    #[test]
+    fn test_algorithm_id_from_u16_unknown_returns_none() {
+        assert!(
+            AlgorithmId::from_u16(0).is_none(),
+            "0 should not map to any algorithm"
+        );
+        assert!(
+            AlgorithmId::from_u16(6).is_none(),
+            "6 is in a gap between symmetric and hash ranges"
+        );
+        assert!(
+            AlgorithmId::from_u16(255).is_none(),
+            "255 should not map to any algorithm"
+        );
+        assert!(
+            AlgorithmId::from_u16(u16::MAX).is_none(),
+            "u16::MAX should not map to any algorithm"
+        );
+    }
+
+    #[test]
+    fn test_registry_get_cipher_key_and_nonce_sizes() {
+        // AES-128-GCM: 16-byte key, 12-byte nonce
+        let aes128 = AlgorithmRegistry::get(AlgorithmId::Aes128Gcm).unwrap();
+        assert_eq!(aes128.key_size(), 16, "AES-128-GCM key should be 16 bytes");
+        assert_eq!(
+            aes128.nonce_size(),
+            Some(12),
+            "AES-128-GCM nonce should be 12 bytes"
+        );
+
+        // AES-256-GCM-SIV: 32-byte key, 12-byte nonce
+        let aes256siv = AlgorithmRegistry::get(AlgorithmId::Aes256GcmSiv).unwrap();
+        assert_eq!(aes256siv.key_size(), 32, "AES-256-GCM-SIV key should be 32 bytes");
+        assert_eq!(
+            aes256siv.nonce_size(),
+            Some(12),
+            "AES-256-GCM-SIV nonce should be 12 bytes"
+        );
+
+        // ChaCha20-Poly1305: 32-byte key, 12-byte nonce
+        let chacha = AlgorithmRegistry::get(AlgorithmId::ChaCha20Poly1305).unwrap();
+        assert_eq!(chacha.key_size(), 32, "ChaCha20-Poly1305 key should be 32 bytes");
+        assert_eq!(
+            chacha.nonce_size(),
+            Some(12),
+            "ChaCha20-Poly1305 nonce should be 12 bytes"
+        );
+
+        // XChaCha20-Poly1305: 32-byte key, 24-byte nonce (extended)
+        let xchacha = AlgorithmRegistry::get(AlgorithmId::XChaCha20Poly1305).unwrap();
+        assert_eq!(xchacha.key_size(), 32, "XChaCha20-Poly1305 key should be 32 bytes");
+        assert_eq!(
+            xchacha.nonce_size(),
+            Some(24),
+            "XChaCha20-Poly1305 nonce should be 24 bytes (extended)"
+        );
+    }
+
+    #[test]
+    fn test_registry_get_unregistered_algorithm_returns_none() {
+        // Sha256 is a valid AlgorithmId but is not registered in the registry's match
+        let result = AlgorithmRegistry::get(AlgorithmId::Sha256);
+        assert!(
+            result.is_none(),
+            "Sha256 should not be registered in the registry"
+        );
+
+        // Similarly, Ed25519 and others not in the match arm
+        assert!(
+            AlgorithmRegistry::get(AlgorithmId::Ed25519).is_none(),
+            "Ed25519 should not be registered in the registry"
+        );
+    }
+
+    #[test]
+    fn test_registry_all_returns_multiple_entries_with_nonempty_names() {
+        let all = AlgorithmRegistry::all();
+
+        assert!(
+            all.len() >= 5,
+            "registry should have at least 5 entries, got {}",
+            all.len()
+        );
+
+        for info in &all {
+            assert!(
+                !info.name().is_empty(),
+                "algorithm {:?} should have a non-empty name",
+                info.id
+            );
+        }
+
+        // Verify some known algorithms are present
+        let names: Vec<&str> = all.iter().map(|a| a.name()).collect();
+        assert!(
+            names.contains(&"AES-256-GCM"),
+            "all() should include AES-256-GCM"
+        );
+        assert!(
+            names.contains(&"ChaCha20-Poly1305"),
+            "all() should include ChaCha20-Poly1305"
+        );
+        assert!(
+            names.contains(&"BLAKE3"),
+            "all() should include BLAKE3"
+        );
+    }
+
+    #[test]
+    fn test_algorithm_info_accessors() {
+        let info = AlgorithmRegistry::get(AlgorithmId::Aes256Gcm).unwrap();
+
+        // key_size() accessor
+        assert_eq!(info.key_size(), info.key_size, "key_size() should match field");
+        assert_eq!(info.key_size(), 32);
+
+        // nonce_size() accessor
+        assert_eq!(
+            info.nonce_size(),
+            info.nonce_size,
+            "nonce_size() should match field"
+        );
+        assert_eq!(info.nonce_size(), Some(12));
+
+        // Verify hash algorithm has no nonce
+        let blake3 = AlgorithmRegistry::get(AlgorithmId::Blake3).unwrap();
+        assert_eq!(
+            blake3.nonce_size(),
+            None,
+            "hash algorithm should have no nonce"
+        );
+        assert_eq!(blake3.key_size(), 32, "BLAKE3 key size should be 32");
+    }
 }

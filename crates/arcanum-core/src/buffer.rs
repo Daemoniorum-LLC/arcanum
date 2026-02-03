@@ -465,4 +465,247 @@ mod tests {
         assert_eq!(key.len(), 32);
         assert_eq!(key.expose().len(), 32);
     }
+
+    // ─── SecretBuffer extended tests ─────────────────────────────────────────
+
+    #[test]
+    fn test_secret_buffer_from_array() {
+        let data = [0x42u8; 16];
+        let buf = SecretBuffer::<16>::from_array(data);
+        assert_eq!(buf.as_array(), &[0x42; 16]);
+    }
+
+    #[test]
+    fn test_secret_buffer_len_const() {
+        assert_eq!(SecretBuffer::<32>::len(), 32);
+        assert_eq!(SecretBuffer::<16>::len(), 16);
+        assert_eq!(SecretBuffer::<64>::len(), 64);
+    }
+
+    #[test]
+    fn test_secret_buffer_copy_from() {
+        let src = SecretBuffer::<16>::from_array([0xAB; 16]);
+        let mut dst = SecretBuffer::<16>::new();
+        assert_eq!(dst.as_array(), &[0x00; 16]);
+
+        dst.copy_from(&src);
+        assert_eq!(dst.as_array(), &[0xAB; 16]);
+    }
+
+    #[test]
+    fn test_secret_buffer_as_array_mut() {
+        let mut buf = SecretBuffer::<8>::new();
+        let arr = buf.as_array_mut();
+        arr[0] = 0xFF;
+        arr[7] = 0x01;
+        assert_eq!(buf.as_array()[0], 0xFF);
+        assert_eq!(buf.as_array()[7], 0x01);
+    }
+
+    #[test]
+    fn test_secret_buffer_default() {
+        let buf: SecretBuffer<32> = SecretBuffer::default();
+        assert_eq!(buf.as_array(), &[0u8; 32]);
+    }
+
+    #[test]
+    fn test_secret_buffer_deref() {
+        let buf = SecretBuffer::<4>::from_array([1, 2, 3, 4]);
+        // Deref gives us &[u8; N]
+        let array_ref: &[u8; 4] = &*buf;
+        assert_eq!(array_ref, &[1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_secret_buffer_deref_mut() {
+        let mut buf = SecretBuffer::<4>::from_array([0, 0, 0, 0]);
+        // DerefMut gives us &mut [u8; N]
+        let array_mut: &mut [u8; 4] = &mut *buf;
+        array_mut[0] = 10;
+        array_mut[3] = 40;
+        assert_eq!(buf.as_array(), &[10, 0, 0, 40]);
+    }
+
+    #[test]
+    fn test_secret_buffer_as_ref() {
+        let buf = SecretBuffer::<4>::from_array([5, 6, 7, 8]);
+        let as_ref: &[u8] = buf.as_ref();
+        assert_eq!(as_ref, &[5, 6, 7, 8]);
+    }
+
+    #[test]
+    fn test_secret_buffer_as_mut() {
+        let mut buf = SecretBuffer::<4>::from_array([0; 4]);
+        let as_mut: &mut [u8] = buf.as_mut();
+        as_mut[1] = 0xFF;
+        assert_eq!(buf.as_array()[1], 0xFF);
+    }
+
+    #[test]
+    fn test_secret_buffer_debug_redaction() {
+        let buf = SecretBuffer::<32>::from_array([0xDE; 32]);
+        let debug_output = format!("{:?}", buf);
+        assert_eq!(debug_output, "SecretBuffer<32>[REDACTED]");
+        assert!(!debug_output.contains("de"), "Debug must not leak buffer contents");
+    }
+
+    // ─── SecureVec extended tests ────────────────────────────────────────────
+
+    #[test]
+    fn test_secure_vec_with_capacity() {
+        let sv = SecureVec::with_capacity(64);
+        assert_eq!(sv.len(), 0);
+        assert!(sv.capacity() >= 64);
+        assert!(sv.is_empty());
+    }
+
+    #[test]
+    fn test_secure_vec_zeroed() {
+        let sv = SecureVec::zeroed(16);
+        assert_eq!(sv.len(), 16);
+        assert!(sv.expose().iter().all(|&b| b == 0));
+    }
+
+    #[test]
+    fn test_secure_vec_from_vec() {
+        let original = vec![1u8, 2, 3, 4, 5];
+        let sv = SecureVec::from_vec(original);
+        assert_eq!(sv.len(), 5);
+        assert_eq!(sv.expose(), &[1, 2, 3, 4, 5]);
+    }
+
+    #[test]
+    fn test_secure_vec_capacity() {
+        let sv = SecureVec::with_capacity(128);
+        assert!(sv.capacity() >= 128);
+    }
+
+    #[test]
+    fn test_secure_vec_reserve() {
+        let mut sv = SecureVec::new();
+        sv.reserve(100);
+        assert!(sv.capacity() >= 100);
+    }
+
+    #[test]
+    fn test_secure_vec_push() {
+        let mut sv = SecureVec::new();
+        sv.push(0xAA);
+        sv.push(0xBB);
+        sv.push(0xCC);
+        assert_eq!(sv.len(), 3);
+        assert_eq!(sv.expose(), &[0xAA, 0xBB, 0xCC]);
+    }
+
+    #[test]
+    fn test_secure_vec_resize_grow() {
+        let mut sv = SecureVec::from_slice(&[1, 2, 3]);
+        sv.resize(6, 0xFF);
+        assert_eq!(sv.len(), 6);
+        assert_eq!(sv.expose(), &[1, 2, 3, 0xFF, 0xFF, 0xFF]);
+    }
+
+    #[test]
+    fn test_secure_vec_resize_shrink() {
+        let mut sv = SecureVec::from_slice(&[1, 2, 3, 4, 5]);
+        sv.resize(2, 0);
+        assert_eq!(sv.len(), 2);
+        assert_eq!(sv.expose(), &[1, 2]);
+    }
+
+    #[test]
+    fn test_secure_vec_into_vec() {
+        let sv = SecureVec::from_slice(&[10, 20, 30]);
+        let v: Vec<u8> = sv.into_vec();
+        assert_eq!(v, vec![10, 20, 30]);
+    }
+
+    #[test]
+    fn test_secure_vec_split_off() {
+        let mut sv = SecureVec::from_slice(&[1, 2, 3, 4, 5]);
+        let second_half = sv.split_off(3);
+        assert_eq!(sv.expose(), &[1, 2, 3]);
+        assert_eq!(second_half.expose(), &[4, 5]);
+    }
+
+    #[test]
+    fn test_secure_vec_expose_and_expose_mut() {
+        let mut sv = SecureVec::from_slice(&[1, 2, 3]);
+        assert_eq!(sv.expose(), &[1, 2, 3]);
+
+        sv.expose_mut()[0] = 99;
+        assert_eq!(sv.expose()[0], 99);
+    }
+
+    #[test]
+    fn test_secure_vec_from_vec_trait() {
+        let v = vec![0xAA, 0xBB];
+        let sv: SecureVec = SecureVec::from(v);
+        assert_eq!(sv.expose(), &[0xAA, 0xBB]);
+    }
+
+    #[test]
+    fn test_secure_vec_from_slice_trait() {
+        let slice: &[u8] = &[1, 2, 3];
+        let sv: SecureVec = SecureVec::from(slice);
+        assert_eq!(sv.expose(), &[1, 2, 3]);
+    }
+
+    #[test]
+    fn test_secure_vec_from_array_trait() {
+        let sv: SecureVec = SecureVec::from([10u8, 20, 30, 40]);
+        assert_eq!(sv.len(), 4);
+        assert_eq!(sv.expose(), &[10, 20, 30, 40]);
+    }
+
+    #[test]
+    fn test_secure_vec_from_iterator() {
+        let sv: SecureVec = (0u8..5).collect();
+        assert_eq!(sv.len(), 5);
+        assert_eq!(sv.expose(), &[0, 1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_secure_vec_debug_redaction() {
+        let sv = SecureVec::from_slice(&[0xDE; 10]);
+        let debug_output = format!("{:?}", sv);
+        assert_eq!(debug_output, "SecureVec[10 bytes, REDACTED]");
+        assert!(!debug_output.contains("de"), "Debug must not leak buffer contents");
+    }
+
+    #[test]
+    fn test_secure_vec_default() {
+        let sv: SecureVec = SecureVec::default();
+        assert!(sv.is_empty());
+        assert_eq!(sv.len(), 0);
+    }
+
+    // ─── GuardedBuffer tests ─────────────────────────────────────────────────
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_guarded_buffer_new() {
+        let buf = GuardedBuffer::new(64);
+        assert_eq!(buf.as_slice().len(), 64);
+        assert!(buf.as_slice().iter().all(|&b| b == 0), "New guarded buffer must be zeroed");
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_guarded_buffer_as_slice() {
+        let buf = GuardedBuffer::new(16);
+        let slice = buf.as_slice();
+        assert_eq!(slice.len(), 16);
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_guarded_buffer_as_mut_slice() {
+        let mut buf = GuardedBuffer::new(8);
+        let slice = buf.as_mut_slice();
+        slice[0] = 0xFF;
+        slice[7] = 0x01;
+        assert_eq!(buf.as_slice()[0], 0xFF);
+        assert_eq!(buf.as_slice()[7], 0x01);
+    }
 }

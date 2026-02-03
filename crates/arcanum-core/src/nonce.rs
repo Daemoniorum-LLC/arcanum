@@ -549,4 +549,163 @@ mod tests {
         assert_eq!(tracker.capacity(), 50);
         assert!(tracker.is_empty());
     }
+
+    // ─── NonceTracker: check_and_touch, clear, reset_eviction_count ──────────
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_nonce_tracker_check_and_touch_detects_reuse() {
+        let tracker = NonceTracker::<12>::new(100);
+        let nonce = Nonce96::random();
+
+        // First use via check_and_touch should succeed
+        assert!(tracker.check_and_touch(&nonce).is_ok());
+        assert_eq!(tracker.len(), 1);
+
+        // Second use of same nonce should fail (reuse detected)
+        let result = tracker.check_and_touch(&nonce);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            Error::NonceReuse => {} // expected
+            other => panic!("Expected NonceReuse, got: {:?}", other),
+        }
+
+        // A different nonce should still succeed
+        let nonce2 = Nonce96::random();
+        assert!(tracker.check_and_touch(&nonce2).is_ok());
+        assert_eq!(tracker.len(), 2);
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_nonce_tracker_clear() {
+        let tracker = NonceTracker::<12>::new(100);
+        let n1 = Nonce96::random();
+        let n2 = Nonce96::random();
+
+        tracker.check(&n1).unwrap();
+        tracker.check(&n2).unwrap();
+        assert_eq!(tracker.len(), 2);
+
+        tracker.clear();
+        assert_eq!(tracker.len(), 0);
+        assert!(tracker.is_empty());
+
+        // After clear, previously tracked nonces should be accepted again
+        assert!(tracker.check(&n1).is_ok());
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_nonce_tracker_reset_eviction_count() {
+        let tracker = NonceTracker::<12>::new(2);
+
+        let n1 = Nonce96::random();
+        let n2 = Nonce96::random();
+        let n3 = Nonce96::random();
+
+        tracker.check(&n1).unwrap();
+        tracker.check(&n2).unwrap();
+        assert_eq!(tracker.eviction_count(), 0);
+
+        // This triggers an eviction
+        tracker.check(&n3).unwrap();
+        assert_eq!(tracker.eviction_count(), 1);
+
+        tracker.reset_eviction_count();
+        assert_eq!(tracker.eviction_count(), 0);
+    }
+
+    // ─── NonceGenerator: hybrid, current_counter, reset ──────────────────────
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_nonce_generator_hybrid() {
+        let nonce_gen = NonceGenerator::<12>::hybrid();
+
+        let n1 = nonce_gen.generate().unwrap();
+        let n2 = nonce_gen.generate().unwrap();
+
+        // Hybrid nonces should differ (different counter values)
+        assert_ne!(n1.as_bytes(), n2.as_bytes());
+        assert_eq!(nonce_gen.count(), 2);
+
+        // The first 4 bytes (random prefix) should be the same for both
+        assert_eq!(&n1.as_bytes()[..4], &n2.as_bytes()[..4],
+            "Hybrid nonces from the same generator should share the random prefix");
+    }
+
+    #[test]
+    fn test_nonce_generator_current_counter() {
+        let nonce_gen = NonceGenerator::<12>::counter(100);
+        assert_eq!(nonce_gen.current_counter(), 100);
+
+        nonce_gen.generate().unwrap();
+        assert_eq!(nonce_gen.current_counter(), 101);
+
+        nonce_gen.generate().unwrap();
+        assert_eq!(nonce_gen.current_counter(), 102);
+    }
+
+    #[test]
+    fn test_nonce_generator_reset_dangerous() {
+        let nonce_gen = NonceGenerator::<12>::counter(0);
+
+        nonce_gen.generate().unwrap();
+        nonce_gen.generate().unwrap();
+        assert_eq!(nonce_gen.count(), 2);
+        assert_eq!(nonce_gen.current_counter(), 2);
+
+        nonce_gen.reset_dangerous_nonce_reuse_possible();
+        assert_eq!(nonce_gen.count(), 0);
+        assert_eq!(nonce_gen.current_counter(), 0);
+    }
+
+    // ─── Nonce: from_counter, from_slice error, increment overflow ───────────
+
+    #[test]
+    fn test_nonce_from_counter_bytes_at_end() {
+        let nonce = Nonce::<12>::from_counter(1);
+        let bytes = nonce.as_bytes();
+
+        // First 4 bytes should be zero (padding)
+        assert_eq!(&bytes[..4], &[0, 0, 0, 0]);
+        // Last 8 bytes should contain the counter in big-endian
+        assert_eq!(&bytes[4..], &1u64.to_be_bytes());
+
+        // Verify a larger counter value
+        let nonce2 = Nonce::<12>::from_counter(0x0102030405060708);
+        let bytes2 = nonce2.as_bytes();
+        assert_eq!(&bytes2[..4], &[0, 0, 0, 0]);
+        assert_eq!(&bytes2[4..], &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]);
+    }
+
+    #[test]
+    fn test_nonce_from_slice_wrong_length() {
+        let short = [0u8; 8];
+        let result = Nonce::<12>::from_slice(&short);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            Error::InvalidNonceLength { expected, actual } => {
+                assert_eq!(expected, 12);
+                assert_eq!(actual, 8);
+            }
+            other => panic!("Expected InvalidNonceLength, got: {:?}", other),
+        }
+
+        let long = [0u8; 16];
+        let result2 = Nonce::<12>::from_slice(&long);
+        assert!(result2.is_err());
+    }
+
+    #[test]
+    fn test_nonce_increment_overflow() {
+        let mut nonce = Nonce::<12>::new([0xFF; 12]);
+        let result = nonce.increment();
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            Error::NonceExhausted => {} // expected
+            other => panic!("Expected NonceExhausted, got: {:?}", other),
+        }
+    }
 }

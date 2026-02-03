@@ -621,4 +621,248 @@ mod tests {
         let parsed = KeyId::parse(&s).unwrap();
         assert_eq!(id, parsed);
     }
+
+    // ─── KeyPair tests ───────────────────────────────────────────────────────
+
+    #[test]
+    fn test_keypair_create_and_access() {
+        let sk_bytes = [1u8; 32];
+        let pk_bytes = [2u8; 32];
+        let sk = SecretKey::<32>::new(sk_bytes);
+        let pk = PublicKey::<32>::new(pk_bytes);
+
+        let pair = KeyPair::new(sk, pk);
+
+        assert_eq!(pair.secret_key().as_bytes(), &[1u8; 32]);
+        assert_eq!(pair.public_key().as_bytes(), &[2u8; 32]);
+    }
+
+    #[test]
+    fn test_keypair_into_secret_key() {
+        let sk = SecretKey::<32>::new([0xAA; 32]);
+        let pk = PublicKey::<32>::new([0xBB; 32]);
+        let pair = KeyPair::new(sk, pk);
+
+        let extracted_sk = pair.into_secret_key();
+        assert_eq!(extracted_sk.as_bytes(), &[0xAA; 32]);
+    }
+
+    #[test]
+    fn test_keypair_into_parts() {
+        let sk = SecretKey::<32>::new([0xCC; 32]);
+        let pk = PublicKey::<32>::new([0xDD; 32]);
+        let pair = KeyPair::new(sk, pk);
+
+        let (extracted_sk, extracted_pk) = pair.into_parts();
+        assert_eq!(extracted_sk.as_bytes(), &[0xCC; 32]);
+        assert_eq!(extracted_pk.as_bytes(), &[0xDD; 32]);
+    }
+
+    #[test]
+    fn test_keypair_debug_redacts_secret() {
+        let sk = SecretKey::<32>::new([0x01; 32]);
+        let pk = PublicKey::<32>::new([0x02; 32]);
+        let pair = KeyPair::new(sk, pk);
+
+        let debug_output = format!("{:?}", pair);
+        assert!(debug_output.contains("REDACTED"), "KeyPair Debug must redact the secret key");
+        assert!(!debug_output.contains("0101"), "KeyPair Debug must not leak secret key bytes");
+    }
+
+    // ─── PublicKey tests ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_public_key_from_slice_correct_length() {
+        let bytes = [0xAB; 32];
+        let pk = PublicKey::<32>::from_slice(&bytes).unwrap();
+        assert_eq!(pk.as_bytes(), &[0xAB; 32]);
+        assert_eq!(pk.as_slice(), &[0xAB; 32]);
+    }
+
+    #[test]
+    fn test_public_key_from_slice_wrong_length() {
+        let short = [0u8; 16];
+        let result = PublicKey::<32>::from_slice(&short);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        match err {
+            Error::InvalidKeyLength { expected, actual } => {
+                assert_eq!(expected, 32);
+                assert_eq!(actual, 16);
+            }
+            other => panic!("Expected InvalidKeyLength, got: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_public_key_len() {
+        assert_eq!(PublicKey::<32>::len(), 32);
+        assert_eq!(PublicKey::<64>::len(), 64);
+        assert_eq!(PublicKey::<16>::len(), 16);
+    }
+
+    // ─── SecretKey tests ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_secret_key_as_slice() {
+        let key = SecretKey::<16>::new([0xFF; 16]);
+        let slice: &[u8] = key.as_slice();
+        assert_eq!(slice.len(), 16);
+        assert!(slice.iter().all(|&b| b == 0xFF));
+    }
+
+    #[test]
+    fn test_secret_key_len_and_bit_len() {
+        assert_eq!(SecretKey::<32>::len(), 32);
+        assert_eq!(SecretKey::<32>::bit_len(), 256);
+        assert_eq!(SecretKey::<16>::len(), 16);
+        assert_eq!(SecretKey::<16>::bit_len(), 128);
+    }
+
+    #[test]
+    fn test_secret_key_ct_eq_equal_keys() {
+        let key1 = SecretKey::<32>::new([0x42; 32]);
+        let key2 = SecretKey::<32>::new([0x42; 32]);
+        assert!(key1.ct_eq(&key2));
+    }
+
+    #[test]
+    fn test_secret_key_ct_eq_different_keys() {
+        let key1 = SecretKey::<32>::new([0x42; 32]);
+        let key2 = SecretKey::<32>::new([0x43; 32]);
+        assert!(!key1.ct_eq(&key2));
+    }
+
+    #[test]
+    fn test_secret_key_constant_time_eq_trait() {
+        let key1 = SecretKey::<32>::new([0x10; 32]);
+        let key2 = SecretKey::<32>::new([0x10; 32]);
+        let key3 = SecretKey::<32>::new([0x20; 32]);
+
+        let eq_result: bool = key1.ct_eq(&key2).into();
+        assert!(eq_result);
+
+        let neq_result: bool = key1.ct_eq(&key3).into();
+        assert!(!neq_result);
+    }
+
+    #[test]
+    fn test_secret_key_debug_redaction() {
+        let key = SecretKey::<32>::new([0xDE; 32]);
+        let debug_output = format!("{:?}", key);
+        assert_eq!(debug_output, "SecretKey<32>[REDACTED]");
+        assert!(!debug_output.contains("de"), "Debug output must not leak key bytes");
+    }
+
+    #[test]
+    fn test_secret_key_as_ref() {
+        let key = SecretKey::<16>::new([0x99; 16]);
+        let as_ref: &[u8] = key.as_ref();
+        assert_eq!(as_ref.len(), 16);
+        assert_eq!(as_ref, &[0x99; 16]);
+    }
+
+    // ─── KeyMetadata tests ───────────────────────────────────────────────────
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_key_metadata_with_expiration_past_is_invalid() {
+        use chrono::{Utc, Duration as ChronoDuration};
+        let past = Utc::now() - ChronoDuration::hours(1);
+        let meta = KeyMetadata::new(KeyAlgorithm::Aes256, vec![KeyUsage::Encrypt])
+            .with_expiration(past);
+
+        assert!(meta.expires_at.is_some());
+        assert!(!meta.is_valid(), "Key with past expiration must be invalid");
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_key_metadata_with_label() {
+        let meta = KeyMetadata::new(KeyAlgorithm::Ed25519, vec![KeyUsage::Sign])
+            .with_label("my-signing-key");
+
+        assert_eq!(meta.label.as_deref(), Some("my-signing-key"));
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_key_metadata_with_extractable() {
+        let meta_default = KeyMetadata::new(KeyAlgorithm::Aes256, vec![KeyUsage::Encrypt]);
+        assert!(!meta_default.extractable, "Default extractable should be false");
+
+        let meta_extractable = meta_default.with_extractable(true);
+        assert!(meta_extractable.extractable);
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_key_metadata_not_before_future_is_invalid() {
+        use chrono::{Utc, Duration as ChronoDuration};
+        let future = Utc::now() + ChronoDuration::hours(1);
+        let mut meta = KeyMetadata::new(KeyAlgorithm::Aes256, vec![KeyUsage::Encrypt]);
+        meta.not_before = Some(future);
+
+        assert!(!meta.is_valid(), "Key with not_before in the future must be invalid");
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_key_metadata_can_use_for_expired_key() {
+        use chrono::{Utc, Duration as ChronoDuration};
+        let past = Utc::now() - ChronoDuration::hours(1);
+        let meta = KeyMetadata::new(KeyAlgorithm::Aes256, vec![KeyUsage::Encrypt])
+            .with_expiration(past);
+
+        assert!(!meta.can_use_for(KeyUsage::Encrypt),
+            "Expired key must not be usable even for its allowed usage");
+        assert!(!meta.can_use_for(KeyUsage::Sign),
+            "Expired key must not be usable for any usage");
+    }
+
+    // ─── KeyAlgorithm Display tests ──────────────────────────────────────────
+
+    #[test]
+    fn test_key_algorithm_display_aes256() {
+        assert_eq!(format!("{}", KeyAlgorithm::Aes256), "AES-256");
+    }
+
+    #[test]
+    fn test_key_algorithm_display_ed25519() {
+        assert_eq!(format!("{}", KeyAlgorithm::Ed25519), "Ed25519");
+    }
+
+    #[test]
+    fn test_key_algorithm_display_ml_kem_768() {
+        assert_eq!(format!("{}", KeyAlgorithm::MlKem768), "ML-KEM-768");
+    }
+
+    #[test]
+    fn test_key_algorithm_display_custom() {
+        let custom = KeyAlgorithm::Custom("MyCustomAlgo".into());
+        assert_eq!(format!("{}", custom), "MyCustomAlgo");
+    }
+
+    // ─── KeyId tests ─────────────────────────────────────────────────────────
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_key_id_from_uuid() {
+        let uuid = uuid::Uuid::new_v4();
+        let key_id = KeyId::from_uuid(uuid);
+        assert_eq!(key_id.as_uuid(), &uuid);
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_key_id_parse_invalid_string() {
+        let result = KeyId::parse("not-a-valid-uuid");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            Error::ParseError(msg) => {
+                assert!(!msg.is_empty(), "Parse error should have a message");
+            }
+            other => panic!("Expected ParseError, got: {:?}", other),
+        }
+    }
 }
