@@ -441,11 +441,16 @@ pub fn to_ethereum_address(&self) -> [u8; 20] {
 **Timeline:** Before release
 **Dependencies:** Phase 1 complete
 
-### 2.1 Mutex Poisoning in Random Number Generator
+### 2.1 ~~Mutex Poisoning in Random Number Generator~~ ✅ COMPLETE
 
 **Issue:** `lock().unwrap()` panics if mutex was poisoned
 
 **Location:** `crates/arcanum-primitives/src/random.rs:154,166`
+
+**Resolution:** Already handled — `arcanum-core/src/random.rs` uses
+`unwrap_or_else(|poisoned| poisoned.into_inner())`. `arcanum-primitives` uses
+`parking_lot::Mutex` which does not support poisoning (no recovery needed).
+No production code calls `.lock().unwrap()` on `std::sync::Mutex`.
 
 #### TDD Steps
 
@@ -505,11 +510,19 @@ pub fn random_bytes<const N: usize>() -> [u8; N] {
 
 ---
 
-### 2.2 Add `#[must_use]` to Result-Returning Functions
+### 2.2 ~~Add `#[must_use]` to Result-Returning Functions~~ ✅ COMPLETE
 
 **Issue:** 174 functions return `Result` without `#[must_use]`
 
 **Locations:** All crates, especially AEAD and signature operations
+
+**Resolution:** Added `#[must_use]` with context-specific messages to 116+ public
+Result-returning functions and trait methods across all 9 library crates:
+arcanum-core, arcanum-symmetric, arcanum-asymmetric, arcanum-hash,
+arcanum-signatures, arcanum-pqc, arcanum-zkp, arcanum-threshold,
+arcanum-primitives, arcanum-wasm. Messages categorized by operation type
+(encryption, decryption, verification, signing, key derivation, parsing, etc.).
+Zero clippy warnings. Commit `1487c25`.
 
 #### TDD Steps
 
@@ -1047,8 +1060,8 @@ proptest! {
 - [x] Add `ethereum` feature to Cargo.toml
 
 ### Phase 2: High Priority (MUST before stable release) — IN PROGRESS
-- [ ] Handle mutex poisoning in random.rs
-- [ ] Add #[must_use] to Result-returning functions
+- [x] Handle mutex poisoning in random.rs (already correct)
+- [x] Add #[must_use] to Result-returning functions
 - [x] Remove duplicate errors.rs in arcanum-threshold
 - [ ] Add FIPS 203/204/205 test vectors
 
