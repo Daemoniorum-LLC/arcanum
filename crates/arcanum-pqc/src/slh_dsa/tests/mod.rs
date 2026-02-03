@@ -332,34 +332,115 @@ mod all_variants {
 mod kat_vectors {
     use super::*;
 
-    /// Structure for KAT test vectors
-    #[allow(dead_code)]
-    struct KatVector {
-        sk_seed: Vec<u8>,
-        sk_prf: Vec<u8>,
-        pk_seed: Vec<u8>,
-        message: Vec<u8>,
-        expected_pk: Vec<u8>,
-        expected_sig: Vec<u8>,
+    /// Helper: generate KAT data from seeds and print for recording.
+    /// Run with `cargo test -p arcanum-pqc --features slh-dsa -- kat_vectors::print_kat --nocapture --ignored`
+    #[test]
+    #[ignore]
+    fn print_kat_vectors_for_recording() {
+        use sha2::{Sha256, Digest};
+
+        fn hex(bytes: &[u8]) -> String {
+            bytes.iter().map(|b| format!("{:02x}", b)).collect()
+        }
+
+        // SHA2-128f
+        let sk_seed: Vec<u8> = (0u8..16).collect();
+        let sk_prf: Vec<u8> = (16u8..32).collect();
+        let pk_seed: Vec<u8> = (32u8..48).collect();
+        let message = b"SLH-DSA FIPS 205 KAT test vector";
+
+        let (sk, vk) = SlhDsaSha2_128f::generate_keypair_from_seed(&sk_seed, &sk_prf, &pk_seed);
+        let sig = SlhDsaSha2_128f::sign_deterministic(&sk, message);
+        let sig_bytes = sig.to_bytes();
+        let sig_hash = Sha256::digest(&sig_bytes);
+        eprintln!("=== SHA2-128f ===");
+        eprintln!("pk:         {}", hex(&vk.to_bytes()));
+        eprintln!("sig_sha256: {}", hex(&sig_hash));
+        eprintln!("sig_prefix: {}", hex(&sig_bytes[..32]));
+        eprintln!("sig_len:    {}", sig_bytes.len());
+
+        // SHA2-128s
+        let (sk_s, vk_s) = SlhDsaSha2_128s::generate_keypair_from_seed(&sk_seed, &sk_prf, &pk_seed);
+        let sig_s = SlhDsaSha2_128s::sign_deterministic(&sk_s, message);
+        let sig_s_bytes = sig_s.to_bytes();
+        let sig_s_hash = Sha256::digest(&sig_s_bytes);
+        eprintln!("=== SHA2-128s ===");
+        eprintln!("pk:         {}", hex(&vk_s.to_bytes()));
+        eprintln!("sig_sha256: {}", hex(&sig_s_hash));
+        eprintln!("sig_prefix: {}", hex(&sig_s_bytes[..32]));
+        eprintln!("sig_len:    {}", sig_s_bytes.len());
     }
 
+    /// Self-consistency KAT test for SLH-DSA-SHA2-128f.
+    ///
+    /// Verifies that deterministic key generation and signing produce
+    /// stable outputs. Seeds are sequential bytes; expected values were
+    /// recorded from a verified run.
     #[test]
-    #[ignore] // Enable when KAT vectors are available
-    fn test_sha2_128f_kat_vectors() {
-        // TODO: Load KAT vectors from file
-        // let vectors = load_kat_vectors("slh-dsa-sha2-128f.json");
-        //
-        // for v in vectors {
-        //     let (sk, vk) = SlhDsaSha2_128f::generate_keypair_from_seed(
-        //         &v.sk_seed, &v.sk_prf, &v.pk_seed
-        //     );
-        //
-        //     assert_eq!(vk.to_bytes(), v.expected_pk);
-        //
-        //     let sig = SlhDsaSha2_128f::sign_deterministic(&sk, &v.message);
-        //     assert_eq!(sig.to_bytes(), v.expected_sig);
-        //
-        //     assert!(SlhDsaSha2_128f::verify(&vk, &v.message, &sig).is_ok());
-        // }
+    fn test_sha2_128f_self_consistency_kat() {
+        use sha2::{Sha256, Digest};
+
+        let sk_seed: Vec<u8> = (0u8..16).collect();
+        let sk_prf: Vec<u8> = (16u8..32).collect();
+        let pk_seed: Vec<u8> = (32u8..48).collect();
+        let message = b"SLH-DSA FIPS 205 KAT test vector";
+
+        // Generate keypair from known seeds
+        let (sk, vk) = SlhDsaSha2_128f::generate_keypair_from_seed(&sk_seed, &sk_prf, &pk_seed);
+
+        // Verify public key matches expected value
+        let pk_hex = vk.to_bytes().iter().map(|b| format!("{:02x}", b)).collect::<String>();
+        assert_eq!(pk_hex, EXPECTED_SHA2_128F_PK, "SHA2-128f public key mismatch — implementation changed");
+
+        // Sign deterministically and verify signature hash
+        let sig = SlhDsaSha2_128f::sign_deterministic(&sk, message);
+        let sig_bytes = sig.to_bytes();
+        assert_eq!(sig_bytes.len(), Sha2_128f::SIG_SIZE);
+
+        let sig_hash = Sha256::digest(&sig_bytes);
+        let sig_hash_hex = sig_hash.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+        assert_eq!(sig_hash_hex, EXPECTED_SHA2_128F_SIG_SHA256, "SHA2-128f signature hash mismatch — implementation changed");
+
+        // Verify signature is valid
+        assert!(SlhDsaSha2_128f::verify(&vk, message, &sig).is_ok());
+
+        // Verify determinism: second sign must produce identical signature
+        let sig2 = SlhDsaSha2_128f::sign_deterministic(&sk, message);
+        assert_eq!(sig.to_bytes(), sig2.to_bytes(), "Deterministic signing not stable");
     }
+
+    /// Self-consistency KAT test for SLH-DSA-SHA2-128s.
+    #[test]
+    fn test_sha2_128s_self_consistency_kat() {
+        use sha2::{Sha256, Digest};
+
+        let sk_seed: Vec<u8> = (0u8..16).collect();
+        let sk_prf: Vec<u8> = (16u8..32).collect();
+        let pk_seed: Vec<u8> = (32u8..48).collect();
+        let message = b"SLH-DSA FIPS 205 KAT test vector";
+
+        let (sk, vk) = SlhDsaSha2_128s::generate_keypair_from_seed(&sk_seed, &sk_prf, &pk_seed);
+
+        let pk_hex = vk.to_bytes().iter().map(|b| format!("{:02x}", b)).collect::<String>();
+        assert_eq!(pk_hex, EXPECTED_SHA2_128S_PK, "SHA2-128s public key mismatch — implementation changed");
+
+        let sig = SlhDsaSha2_128s::sign_deterministic(&sk, message);
+        let sig_bytes = sig.to_bytes();
+        assert_eq!(sig_bytes.len(), Sha2_128s::SIG_SIZE);
+
+        let sig_hash = Sha256::digest(&sig_bytes);
+        let sig_hash_hex = sig_hash.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+        assert_eq!(sig_hash_hex, EXPECTED_SHA2_128S_SIG_SHA256, "SHA2-128s signature hash mismatch — implementation changed");
+
+        assert!(SlhDsaSha2_128s::verify(&vk, message, &sig).is_ok());
+
+        let sig2 = SlhDsaSha2_128s::sign_deterministic(&sk, message);
+        assert_eq!(sig.to_bytes(), sig2.to_bytes(), "Deterministic signing not stable");
+    }
+
+    // Expected values recorded from verified run (sequential seeds 0x00..0x2f)
+    const EXPECTED_SHA2_128F_PK: &str = "202122232425262728292a2b2c2d2e2f902f02ebec7996b03694f8744a0a25f8";
+    const EXPECTED_SHA2_128F_SIG_SHA256: &str = "2f93b3a280801b1339d9bded2fdc4b1cefe5ff3cc71b03118ca08b05b0bb3b52";
+    const EXPECTED_SHA2_128S_PK: &str = "202122232425262728292a2b2c2d2e2fff924831e188087f18a24674badb611c";
+    const EXPECTED_SHA2_128S_SIG_SHA256: &str = "36a0bd02aa35bc5528c1fc558f6690c908d684e22942e1b8bc19d25681cd95cf";
 }

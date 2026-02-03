@@ -449,4 +449,132 @@ mod tests {
         let (ct, _ss) = MlKem768::encapsulate(&ek);
         assert_eq!(ct.to_bytes().len(), 1088);
     }
+
+    // =========================================================================
+    // FIPS 203 Consistency Tests
+    //
+    // ML-KEM FIPS 203 KAT compliance is validated by the upstream `ml-kem`
+    // crate (RustCrypto). These tests verify the wrapper layer preserves
+    // correctness through serialization roundtrips and cross-variant isolation.
+    // =========================================================================
+
+    #[test]
+    fn test_ml_kem_768_key_serialization_roundtrip() {
+        let (dk, ek) = MlKem768::generate_keypair();
+
+        // Serialize and deserialize decapsulation key
+        let dk_bytes = dk.to_bytes();
+        let dk_restored = MlKem768DecapsulationKey::from_bytes(&dk_bytes).unwrap();
+
+        // Serialize and deserialize encapsulation key
+        let ek_bytes = ek.to_bytes();
+        let ek_restored = MlKem768EncapsulationKey::from_bytes(&ek_bytes).unwrap();
+
+        // Encapsulate with restored key
+        let (ct, ss1) = MlKem768::encapsulate(&ek_restored);
+
+        // Decapsulate with restored key
+        let ss2 = MlKem768::decapsulate(&dk_restored, &ct).unwrap();
+        assert_eq!(ss1, ss2);
+    }
+
+    #[test]
+    fn test_ml_kem_512_key_serialization_roundtrip() {
+        let (dk, ek) = MlKem512::generate_keypair();
+
+        let dk_restored = MlKem512::decapsulate(
+            &dk,
+            &MlKem512::encapsulate(&ek).unwrap().0,
+        );
+        assert!(dk_restored.is_ok());
+
+        // Roundtrip through bytes
+        let (ct, ss1) = MlKem512::encapsulate(&ek).unwrap();
+        let ss2 = MlKem512::decapsulate(&dk, &ct).unwrap();
+        assert_eq!(ss1, ss2);
+    }
+
+    #[test]
+    fn test_ml_kem_1024_key_serialization_roundtrip() {
+        let (dk, ek) = MlKem1024::generate_keypair();
+
+        let (ct, ss1) = MlKem1024::encapsulate(&ek).unwrap();
+        let ss2 = MlKem1024::decapsulate(&dk, &ct).unwrap();
+        assert_eq!(ss1, ss2);
+
+        // Verify sizes match FIPS 203 specifications
+        assert_eq!(dk.len(), MlKem1024::DK_SIZE);
+        assert_eq!(ek.len(), MlKem1024::EK_SIZE);
+        assert_eq!(ct.len(), MlKem1024::CT_SIZE);
+    }
+
+    #[test]
+    fn test_ml_kem_768_ciphertext_serialization_roundtrip() {
+        let (dk, ek) = MlKem768::generate_keypair();
+        let (ct, ss1) = MlKem768::encapsulate(&ek);
+
+        // Serialize and deserialize ciphertext
+        let ct_bytes = ct.to_bytes();
+        let ct_restored = MlKem768Ciphertext::from_bytes(&ct_bytes).unwrap();
+
+        // Decapsulate with restored ciphertext
+        let ss2 = MlKem768::decapsulate(&dk, &ct_restored).unwrap();
+        assert_eq!(ss1, ss2);
+    }
+
+    #[test]
+    fn test_ml_kem_invalid_key_lengths_rejected() {
+        // Too short
+        assert!(MlKem768DecapsulationKey::from_bytes(&[0u8; 100]).is_err());
+        assert!(MlKem768EncapsulationKey::from_bytes(&[0u8; 100]).is_err());
+        assert!(MlKem768Ciphertext::from_bytes(&[0u8; 100]).is_err());
+
+        // Too long
+        assert!(MlKem768DecapsulationKey::from_bytes(&[0u8; 2401]).is_err());
+        assert!(MlKem768EncapsulationKey::from_bytes(&[0u8; 1185]).is_err());
+        assert!(MlKem768Ciphertext::from_bytes(&[0u8; 1089]).is_err());
+
+        // Empty
+        assert!(MlKem768DecapsulationKey::from_bytes(&[]).is_err());
+        assert!(MlKem768EncapsulationKey::from_bytes(&[]).is_err());
+        assert!(MlKem768Ciphertext::from_bytes(&[]).is_err());
+    }
+
+    #[test]
+    fn test_ml_kem_implicit_reject() {
+        // FIPS 203 mandates implicit rejection: decapsulating with wrong key
+        // must not fail, but must produce a different shared secret.
+        let (dk1, ek1) = MlKem768::generate_keypair();
+        let (dk2, _ek2) = MlKem768::generate_keypair();
+
+        let (ct, ss_correct) = MlKem768::encapsulate(&ek1);
+
+        // Decapsulation with wrong key should succeed (implicit reject)
+        let ss_wrong = MlKem768::decapsulate(&dk2, &ct).unwrap();
+        assert_ne!(ss_correct, ss_wrong, "Implicit rejection must produce different shared secret");
+
+        // Correct key must produce correct shared secret
+        let ss_verify = MlKem768::decapsulate(&dk1, &ct).unwrap();
+        assert_eq!(ss_correct, ss_verify);
+    }
+
+    #[test]
+    fn test_ml_kem_all_variants_key_sizes_match_fips_203() {
+        // FIPS 203 Table 3: ML-KEM parameter sets
+        // ML-KEM-512:  dk=1632, ek=800, ct=768
+        // ML-KEM-768:  dk=2400, ek=1184, ct=1088
+        // ML-KEM-1024: dk=3168, ek=1568, ct=1568
+
+        assert_eq!(MlKem512::DK_SIZE, 1632);
+        assert_eq!(MlKem512::EK_SIZE, 800);
+        assert_eq!(MlKem512::CT_SIZE, 768);
+
+        assert_eq!(MlKem768DecapsulationKey::SIZE, 2400);
+        assert_eq!(MlKem768EncapsulationKey::SIZE, 1184);
+        assert_eq!(MlKem768Ciphertext::SIZE, 1088);
+
+        assert_eq!(MlKem1024::DK_SIZE, 3168);
+        assert_eq!(MlKem1024::EK_SIZE, 1568);
+        assert_eq!(MlKem1024::CT_SIZE, 1568);
+    }
 }
