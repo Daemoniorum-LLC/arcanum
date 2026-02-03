@@ -3,10 +3,15 @@
 //! These types provide secure memory handling for sensitive data,
 //! ensuring that secrets are properly zeroized when no longer needed.
 
+#[cfg(not(feature = "std"))]
+use alloc::{format, vec, vec::Vec};
+
 use crate::error::{Error, Result};
+#[cfg(feature = "std")]
 use crate::random::OsRng;
+#[cfg(feature = "std")]
 use rand::RngCore;
-use std::ops::{Deref, DerefMut};
+use core::ops::{Deref, DerefMut};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -30,6 +35,7 @@ impl<const N: usize> SecretBuffer<N> {
     /// Create a buffer filled with cryptographically secure random bytes.
     ///
     /// This is the recommended way to generate secret keys.
+    #[cfg(feature = "std")]
     pub fn random() -> Self {
         let mut data = [0u8; N];
         OsRng.fill_bytes(&mut data);
@@ -113,8 +119,8 @@ impl<const N: usize> AsMut<[u8]> for SecretBuffer<N> {
     }
 }
 
-impl<const N: usize> std::fmt::Debug for SecretBuffer<N> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<const N: usize> core::fmt::Debug for SecretBuffer<N> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "SecretBuffer<{}>[REDACTED]", N)
     }
 }
@@ -154,6 +160,7 @@ impl SecureVec {
     /// Create a buffer filled with cryptographically secure random bytes.
     ///
     /// This is the recommended way to generate secret keys of arbitrary length.
+    #[cfg(feature = "std")]
     pub fn random(len: usize) -> Self {
         let mut data = vec![0u8; len];
         OsRng.fill_bytes(&mut data);
@@ -230,7 +237,7 @@ impl SecureVec {
     /// **Warning**: The returned Vec will NOT be automatically zeroized.
     /// Use with caution.
     pub fn into_vec(mut self) -> Vec<u8> {
-        std::mem::take(&mut self.data)
+        core::mem::take(&mut self.data)
     }
 
     /// Split at a position, returning the second half.
@@ -319,8 +326,8 @@ impl AsMut<[u8]> for SecureVec {
     }
 }
 
-impl std::fmt::Debug for SecureVec {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for SecureVec {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "SecureVec[{} bytes, REDACTED]", self.data.len())
     }
 }
@@ -430,6 +437,7 @@ mod tests {
         assert_eq!(&*vec, &[1, 2, 3]);
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_secret_buffer_random() {
         let buf1 = SecretBuffer::<32>::random();
@@ -438,6 +446,7 @@ mod tests {
         assert_ne!(buf1.as_array(), buf2.as_array());
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_secure_vec_random() {
         let vec1 = SecureVec::random(32);
@@ -447,6 +456,7 @@ mod tests {
         assert_eq!(vec1.len(), 32);
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_secret_bytes_alias() {
         // SecretBytes is an alias for SecureVec

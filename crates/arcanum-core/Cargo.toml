@@ -11,59 +11,106 @@ keywords = ["cryptography", "traits", "core"]
 categories = ["cryptography", "no-std"]
 
 [features]
-default = ["std", "serde"]
-std = ["zeroize/std", "rand/std", "rand_core/std"]
-alloc = ["zeroize/alloc"]
+default = ["std", "serde", "encoding", "async"]
+
+# Standard library support - enables all std-dependent functionality
+std = [
+    "alloc",
+    "zeroize/std",
+    "rand/std",
+    "rand_core/std",
+    "getrandom/std",
+    "dep:parking_lot",
+    "dep:lru",
+    "dep:once_cell",
+    "dep:chrono",
+    "dep:uuid",
+    "dep:rand_chacha",
+]
+
+# Alloc support without full std (Vec, String, Box)
+alloc = [
+    "zeroize/alloc",
+    "dep:blake3",
+]
+
+# Encoding formats (requires alloc for String returns)
+encoding = [
+    "alloc",
+    "dep:hex",
+    "dep:base64ct",
+    "dep:base32ct",
+    "dep:bs58",
+    "dep:bech32",
+    "dep:multibase",
+]
+
+# Async trait support
+async = ["dep:async-trait"]
+
+# Serialization
 serde = ["dep:serde", "secrecy/serde"]
-hazmat = []  # Enable hazardous materials (raw primitives)
+
+# Hazardous materials (raw primitives)
+hazmat = []
 
 [dependencies]
-# Core traits
+# ═══════════════════════════════════════════════════════════════════════════════
+# Category A: Always required (no_std compatible)
+# ═══════════════════════════════════════════════════════════════════════════════
 zeroize = { workspace = true }
 secrecy = { workspace = true }
 subtle = { workspace = true }
 constant_time_eq = { workspace = true }
-
-# Random number generation
-rand = { workspace = true }
-rand_core = { workspace = true }
-rand_chacha = { workspace = true }
-getrandom = { workspace = true }
-
-# Type utilities
+thiserror = { workspace = true }
 generic-array = { workspace = true }
 typenum = { workspace = true }
+arrayvec = { workspace = true }
+rand = { workspace = true }
+rand_core = { workspace = true }
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Category D: Collection types (no_std compatible, always available)
+# ═══════════════════════════════════════════════════════════════════════════════
 bytes = { workspace = true }
 smallvec = { workspace = true }
-arrayvec = { workspace = true }
 bitvec = { workspace = true }
 
-# Encoding
-base64ct = { workspace = true }
-base32ct = { workspace = true }
-hex = { workspace = true }
-bs58 = { workspace = true }
-bech32 = { workspace = true }
-multibase = { workspace = true }
+# ═══════════════════════════════════════════════════════════════════════════════
+# Category B: std-gated (optional)
+# ═══════════════════════════════════════════════════════════════════════════════
+parking_lot = { workspace = true, optional = true }
+lru = { workspace = true, optional = true }
+once_cell = { workspace = true, optional = true }
+chrono = { workspace = true, optional = true }
+uuid = { workspace = true, optional = true }
+rand_chacha = { workspace = true, optional = true }
+getrandom = { workspace = true, optional = true }
 
-# Hashing (for CSPRNG seed derivation)
-blake3 = { workspace = true }
+# ═══════════════════════════════════════════════════════════════════════════════
+# Category C: Encoding (optional, requires alloc)
+# ═══════════════════════════════════════════════════════════════════════════════
+hex = { workspace = true, optional = true }
+base64ct = { workspace = true, optional = true }
+base32ct = { workspace = true, optional = true }
+bs58 = { workspace = true, optional = true }
+bech32 = { workspace = true, optional = true }
+multibase = { workspace = true, optional = true }
 
-# Error handling
-thiserror = { workspace = true }
+# ═══════════════════════════════════════════════════════════════════════════════
+# Alloc-gated
+# ═══════════════════════════════════════════════════════════════════════════════
+blake3 = { workspace = true, optional = true }
 
-# Serialization (optional)
+# ═══════════════════════════════════════════════════════════════════════════════
+# Async (optional)
+# ═══════════════════════════════════════════════════════════════════════════════
+async-trait = { workspace = true, optional = true }
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Serialization (already optional)
+# ═══════════════════════════════════════════════════════════════════════════════
 serde = { workspace = true, optional = true }
-
-# Async
-async-trait = { workspace = true }
-
-# Utilities
-chrono = { workspace = true }
-uuid = { workspace = true }
-parking_lot = { workspace = true }
-once_cell = { workspace = true }
-lru = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }

@@ -4,7 +4,13 @@
 //! They are designed to be algorithm-agnostic, allowing code to work with any
 //! implementation that satisfies the trait bounds.
 
+#[cfg(all(not(feature = "std"), feature = "async"))]
+use alloc::boxed::Box;
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec, vec::Vec};
+
 use crate::error::Result;
+#[cfg(feature = "async")]
 use async_trait::async_trait;
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -325,6 +331,7 @@ pub trait SecretSharing {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /// Trait for threshold signature schemes.
+#[cfg(feature = "async")]
 #[async_trait]
 pub trait ThresholdSigner {
     /// Key share type.
@@ -364,6 +371,7 @@ pub trait ThresholdSigner {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /// Trait for key storage backends.
+#[cfg(feature = "async")]
 #[async_trait]
 pub trait KeyStore: Send + Sync {
     /// Store a key.

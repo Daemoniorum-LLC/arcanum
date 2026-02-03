@@ -5,12 +5,17 @@
 //! to prevent catastrophic nonce reuse.
 
 use crate::error::{Error, Result};
+#[cfg(feature = "std")]
 use crate::random::OsRng;
+#[cfg(feature = "std")]
 use lru::LruCache;
+#[cfg(feature = "std")]
 use parking_lot::Mutex;
+#[cfg(feature = "std")]
 use rand::RngCore;
-use std::num::NonZeroUsize;
-use std::sync::atomic::{AtomicU64, Ordering};
+#[cfg(feature = "std")]
+use core::num::NonZeroUsize;
+use core::sync::atomic::{AtomicU64, Ordering};
 use zeroize::Zeroize;
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -46,6 +51,7 @@ impl<const N: usize> Nonce<N> {
     }
 
     /// Generate a random nonce.
+    #[cfg(feature = "std")]
     pub fn random() -> Self {
         let mut bytes = [0u8; N];
         OsRng.fill_bytes(&mut bytes);
@@ -107,14 +113,23 @@ impl<const N: usize> AsRef<[u8]> for Nonce<N> {
     }
 }
 
-impl<const N: usize> std::fmt::Debug for Nonce<N> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+#[cfg(feature = "encoding")]
+impl<const N: usize> core::fmt::Debug for Nonce<N> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Nonce<{}>({})", N, hex::encode(self.bytes))
     }
 }
 
-impl<const N: usize> std::fmt::Display for Nonce<N> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+#[cfg(not(feature = "encoding"))]
+impl<const N: usize> core::fmt::Debug for Nonce<N> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Nonce<{}>([{} bytes])", N, N)
+    }
+}
+
+#[cfg(feature = "encoding")]
+impl<const N: usize> core::fmt::Display for Nonce<N> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", hex::encode(self.bytes))
     }
 }
@@ -140,6 +155,7 @@ pub enum NonceStrategy {
 pub struct NonceGenerator<const N: usize> {
     strategy: NonceStrategy,
     counter: AtomicU64,
+    #[cfg_attr(not(feature = "std"), allow(dead_code))]
     random_prefix: [u8; 4],
     generated_count: AtomicU64,
     max_nonces: Option<u64>,
@@ -147,6 +163,7 @@ pub struct NonceGenerator<const N: usize> {
 
 impl<const N: usize> NonceGenerator<N> {
     /// Create a new random nonce generator.
+    #[cfg(feature = "std")]
     pub fn random() -> Self {
         Self {
             strategy: NonceStrategy::Random,
@@ -173,6 +190,7 @@ impl<const N: usize> NonceGenerator<N> {
     /// Create a hybrid nonce generator.
     ///
     /// Combines a random prefix with a counter for the best of both worlds.
+    #[cfg(feature = "std")]
     pub fn hybrid() -> Self {
         let mut prefix = [0u8; 4];
         OsRng.fill_bytes(&mut prefix);
@@ -207,7 +225,13 @@ impl<const N: usize> NonceGenerator<N> {
         }
 
         match self.strategy {
+            #[cfg(feature = "std")]
             NonceStrategy::Random => Ok(Nonce::random()),
+
+            #[cfg(not(feature = "std"))]
+            NonceStrategy::Random => Err(Error::NotImplemented(
+                "random nonces require std feature".into(),
+            )),
 
             NonceStrategy::Counter => {
                 let counter = self.counter.fetch_add(1, Ordering::SeqCst);
@@ -222,6 +246,7 @@ impl<const N: usize> NonceGenerator<N> {
                 Ok(Nonce::new(bytes))
             }
 
+            #[cfg(feature = "std")]
             NonceStrategy::Hybrid => {
                 let counter = self.counter.fetch_add(1, Ordering::SeqCst);
                 if counter == u64::MAX {
@@ -243,6 +268,11 @@ impl<const N: usize> NonceGenerator<N> {
 
                 Ok(Nonce::new(bytes))
             }
+
+            #[cfg(not(feature = "std"))]
+            NonceStrategy::Hybrid => Err(Error::NotImplemented(
+                "hybrid nonces require std feature".into(),
+            )),
         }
     }
 
@@ -271,6 +301,7 @@ impl<const N: usize> NonceGenerator<N> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<const N: usize> Default for NonceGenerator<N> {
     fn default() -> Self {
         Self::random()
@@ -297,12 +328,14 @@ impl<const N: usize> Default for NonceGenerator<N> {
 /// - Evicted nonces can be replayed if reused by an attacker
 /// - Size the capacity appropriately for your security requirements
 /// - Consider using with sliding time windows for long-running systems
+#[cfg(feature = "std")]
 pub struct NonceTracker<const N: usize> {
     cache: Mutex<LruCache<[u8; N], ()>>,
     max_entries: NonZeroUsize,
     eviction_count: AtomicU64,
 }
 
+#[cfg(feature = "std")]
 impl<const N: usize> NonceTracker<N> {
     /// Create a new nonce tracker with the specified capacity.
     ///
@@ -421,6 +454,7 @@ pub type Nonce64 = Nonce<8>;
 mod tests {
     use super::*;
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_nonce_random() {
         let n1 = Nonce96::random();
@@ -454,6 +488,7 @@ mod tests {
         assert!(generator.generate().is_err()); // Should fail
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_nonce_tracker() {
         let tracker = NonceTracker::<12>::new(100);
@@ -470,6 +505,7 @@ mod tests {
         assert!(tracker.check(&nonce2).is_ok());
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_nonce_tracker_lru_eviction() {
         // Create a tracker with capacity of 3
@@ -503,6 +539,7 @@ mod tests {
         assert!(tracker.check(&n4).is_err());
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_nonce_tracker_capacity() {
         let tracker = NonceTracker::<12>::new(50);

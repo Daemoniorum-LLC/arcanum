@@ -1,10 +1,10 @@
 # arcanum-core `no_std` Support TDD Roadmap
 
 **Document ID:** TDD-CORE-NOSTD-001
-**Version:** 1.0.0
+**Version:** 1.1.0
 **Date:** 2026-02-03
 **Governing Spec:** [CORE-NO-STD-SPEC.md](./CORE-NO-STD-SPEC.md)
-**Status:** RED Phase
+**Status:** GREEN Complete — All phases pass
 
 ---
 
@@ -21,8 +21,12 @@ This roadmap defines the test-driven implementation path for arcanum-core `no_st
 - Spec gaps discovered during testing trigger SDD UPDATE cycle
 
 **Current State:**
-- `cargo check -p arcanum-core --no-default-features` → **154 errors**
-- Target: **0 errors** across three feature profiles
+- `cargo check -p arcanum-core --no-default-features` → **0 errors** ✅
+- `cargo check -p arcanum-core --no-default-features --features alloc` → **0 errors** ✅
+- `cargo check -p arcanum-core --no-default-features --features "alloc,encoding"` → **0 errors** ✅
+- All 13 feature combinations compile clean ✅
+- 93 tests pass (std), 56 tests pass (no_std+alloc) ✅
+- Zero clippy warnings across all profiles ✅
 
 ---
 
@@ -774,7 +778,9 @@ bash tests/scripts/check_feature_matrix.sh
 
 | Gap ID | Discovery | Spec Impact | Resolution |
 |--------|-----------|-------------|------------|
-| *None yet* | | | |
+| GAP-001 | GREEN Phase 5 | KeyId/KeyMetadata had unconditional `Serialize`/`Deserialize` derives | Added `#[cfg_attr(feature = "serde", derive(...))]` gates |
+| GAP-002 | GREEN Phase 5 | `random_id()` and `random_token()` use encoding deps under `#[cfg(feature = "std")]` only | Added `#[cfg(all(feature = "std", feature = "encoding"))]` gate |
+| GAP-003 | REFACTOR | Inline unit tests in buffer.rs, random.rs, key.rs, version.rs, error.rs lacked feature gates | Added `#[cfg(feature = "std")]`/`#[cfg(feature = "encoding")]` gates and `ToString` imports |
 
 Gaps discovered during RED/GREEN phases will be logged here and trigger updates to SPEC-CORE-NOSTD-001.
 
@@ -785,3 +791,4 @@ Gaps discovered during RED/GREEN phases will be logged here and trigger updates 
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0.0 | 2026-02-03 | Initial RED phase — all test specifications defined |
+| 1.1.0 | 2026-02-03 | GREEN complete — all phases implemented, 13 feature combos pass, 10 test files written |

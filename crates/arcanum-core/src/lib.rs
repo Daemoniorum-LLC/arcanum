@@ -35,16 +35,17 @@
 #![warn(missing_docs, rust_2018_idioms, unreachable_pub)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
-#[cfg(feature = "alloc")]
-#[allow(unused_extern_crates)] // Used in no_std mode
+#[cfg(not(feature = "std"))]
 extern crate alloc;
 
 pub mod buffer;
+#[cfg(feature = "encoding")]
 pub mod encoding;
 pub mod error;
 pub mod key;
 pub mod nonce;
 pub mod random;
+#[cfg(feature = "std")]
 pub mod time;
 pub mod traits;
 pub mod version;
@@ -52,10 +53,14 @@ pub mod version;
 /// Re-exports of commonly used types
 pub mod prelude {
     pub use crate::buffer::{SecretBuffer, SecretBytes, SecureVec};
+    #[cfg(feature = "encoding")]
     pub use crate::encoding::{Base64, Hex};
     pub use crate::error::{Error, Result};
-    pub use crate::key::{KeyId, KeyMetadata, PublicKey, SecretKey};
+    #[cfg(feature = "std")]
+    pub use crate::key::{KeyId, KeyMetadata};
+    pub use crate::key::{PublicKey, SecretKey};
     pub use crate::nonce::Nonce;
+    #[cfg(feature = "std")]
     pub use crate::random::{CryptoRng, OsRng};
     pub use crate::traits::*;
     pub use crate::version::Version;

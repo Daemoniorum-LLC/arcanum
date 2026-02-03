@@ -10,14 +10,26 @@
 // moving fields out of a type that implements Drop.
 #![allow(unsafe_code)]
 
+#[cfg(not(feature = "std"))]
+use alloc::string::String;
+#[cfg(all(not(feature = "std"), feature = "encoding"))]
+use alloc::string::ToString;
+#[cfg(all(not(feature = "std"), feature = "serde", feature = "encoding"))]
+use alloc::vec::Vec;
+
 use crate::error::{Error, Result};
+#[cfg(feature = "std")]
 use crate::random::OsRng;
+#[cfg(feature = "std")]
 use chrono::{DateTime, Utc};
+#[cfg(feature = "std")]
 use rand::RngCore;
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use std::fmt;
-use std::mem::ManuallyDrop;
+use core::fmt;
+use core::mem::ManuallyDrop;
 use subtle::{Choice, ConstantTimeEq};
+#[cfg(feature = "std")]
 use uuid::Uuid;
 use zeroize::ZeroizeOnDrop;
 
@@ -57,6 +69,7 @@ impl<const N: usize> SecretKey<N> {
     }
 
     /// Generate a random secret key.
+    #[cfg(feature = "std")]
     pub fn generate() -> Self {
         let mut bytes = [0u8; N];
         OsRng.fill_bytes(&mut bytes);
@@ -169,23 +182,34 @@ impl<const N: usize> PublicKey<N> {
     }
 
     /// Encode as hex string.
+    #[cfg(feature = "encoding")]
     pub fn to_hex(&self) -> String {
         hex::encode(self.bytes)
     }
 
     /// Decode from hex string.
+    #[cfg(feature = "encoding")]
     pub fn from_hex(s: &str) -> Result<Self> {
         let bytes = hex::decode(s).map_err(|e| Error::ParseError(e.to_string()))?;
         Self::from_slice(&bytes)
     }
 }
 
+#[cfg(feature = "encoding")]
 impl<const N: usize> fmt::Debug for PublicKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "PublicKey<{}>({})", N, self.to_hex())
     }
 }
 
+#[cfg(not(feature = "encoding"))]
+impl<const N: usize> fmt::Debug for PublicKey<N> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "PublicKey<{}>([{} bytes])", N, N)
+    }
+}
+
+#[cfg(feature = "encoding")]
 impl<const N: usize> fmt::Display for PublicKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_hex())
@@ -198,9 +222,9 @@ impl<const N: usize> AsRef<[u8]> for PublicKey<N> {
     }
 }
 
-#[cfg(feature = "serde")]
+#[cfg(all(feature = "serde", feature = "encoding"))]
 impl<const N: usize> Serialize for PublicKey<N> {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -212,9 +236,9 @@ impl<const N: usize> Serialize for PublicKey<N> {
     }
 }
 
-#[cfg(feature = "serde")]
+#[cfg(all(feature = "serde", feature = "encoding"))]
 impl<'de, const N: usize> Deserialize<'de> for PublicKey<N> {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
@@ -265,7 +289,7 @@ impl<const SK: usize, const PK: usize> KeyPair<SK, PK> {
         // SAFETY: We're taking ownership of the inner value and not using `self` afterward.
         // The public key in ManuallyDrop will be leaked (not dropped), which is fine.
         let secret = unsafe { ManuallyDrop::take(&mut self.secret_key) };
-        std::mem::forget(self);
+        core::mem::forget(self);
         secret
     }
 
@@ -274,7 +298,7 @@ impl<const SK: usize, const PK: usize> KeyPair<SK, PK> {
         // SAFETY: We're taking ownership of both inner values.
         let secret = unsafe { ManuallyDrop::take(&mut self.secret_key) };
         let public = unsafe { ManuallyDrop::take(&mut self.public_key) };
-        std::mem::forget(self);
+        core::mem::forget(self);
         (secret, public)
     }
 }
@@ -304,9 +328,12 @@ impl<const SK: usize, const PK: usize> fmt::Debug for KeyPair<SK, PK> {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /// Unique identifier for a key.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg(feature = "std")]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct KeyId(Uuid);
 
+#[cfg(feature = "std")]
 impl KeyId {
     /// Generate a new random key ID.
     pub fn generate() -> Self {
@@ -330,6 +357,7 @@ impl KeyId {
     }
 }
 
+#[cfg(feature = "std")]
 impl fmt::Display for KeyId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
@@ -337,7 +365,8 @@ impl fmt::Display for KeyId {
 }
 
 /// Key usage purposes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum KeyUsage {
     /// Encryption and decryption.
     Encrypt,
@@ -354,7 +383,8 @@ pub enum KeyUsage {
 }
 
 /// Key algorithm identifiers.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[allow(missing_docs)] // Variants are self-documenting
 pub enum KeyAlgorithm {
     // Symmetric
@@ -450,7 +480,9 @@ impl fmt::Display for KeyAlgorithm {
 }
 
 /// Metadata associated with a key.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg(feature = "std")]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct KeyMetadata {
     /// Unique key identifier.
     pub id: KeyId,
@@ -474,6 +506,7 @@ pub struct KeyMetadata {
     pub attributes: std::collections::HashMap<String, String>,
 }
 
+#[cfg(feature = "std")]
 impl KeyMetadata {
     /// Create new metadata with minimal fields.
     pub fn new(algorithm: KeyAlgorithm, usages: Vec<KeyUsage>) -> Self {
@@ -536,6 +569,7 @@ impl KeyMetadata {
 mod tests {
     use super::*;
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_secret_key_generation() {
         let key1 = SecretKey::<32>::generate();
@@ -556,6 +590,7 @@ mod tests {
         assert!(SecretKey::<32>::from_slice(&short).is_err());
     }
 
+    #[cfg(feature = "encoding")]
     #[test]
     fn test_public_key_hex() {
         let bytes = [0xab; 32];
@@ -565,6 +600,7 @@ mod tests {
         assert_eq!(key, decoded);
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_key_metadata_validity() {
         let meta = KeyMetadata::new(KeyAlgorithm::Aes256, vec![KeyUsage::Encrypt]);
@@ -573,6 +609,7 @@ mod tests {
         assert!(!meta.can_use_for(KeyUsage::Sign));
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_key_id() {
         let id = KeyId::generate();

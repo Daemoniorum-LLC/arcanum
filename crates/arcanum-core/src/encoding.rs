@@ -2,6 +2,9 @@
 //!
 //! Provides constant-time encoding/decoding for various formats.
 
+#[cfg(not(feature = "std"))]
+use alloc::{format, string::{String, ToString}, vec::Vec};
+
 use crate::error::{Error, Result};
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -225,7 +228,7 @@ impl Pem {
 
         // Wrap at 64 characters
         for chunk in base64.as_bytes().chunks(64) {
-            result.push_str(std::str::from_utf8(chunk).unwrap());
+            result.push_str(core::str::from_utf8(chunk).unwrap());
             result.push('\n');
         }
 
