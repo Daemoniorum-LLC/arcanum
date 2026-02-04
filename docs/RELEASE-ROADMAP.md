@@ -3,8 +3,8 @@
 **Version:** 1.0.0-rc1
 **Created:** 2026-01-20
 **Updated:** 2026-02-03
-**Methodology:** Test-Driven Development (TDD)
-**Status:** Phase 1 Complete — Phase 2 Complete — Phase 3 Complete — Phase 4 Complete
+**Methodology:** Test-Driven Development (TDD) + Spec-Driven Development (SDD v1.0.0) + Agent-Optimized TDD v1.0.0
+**Status:** Phase 1 Complete — Phase 2 Complete — Phase 3 Complete — Phase 4 Complete — Phase 5 Specified
 
 ---
 
@@ -1144,6 +1144,894 @@ of platform-specific and feature-gated code not exercised in a single default ru
 
 ---
 
+## Phase 5: Cryptographic Assurance Testing
+
+**Timeline:** Before stable release
+**Dependencies:** Phase 4 complete
+**Methodology:** Spec-Driven Development — spec written BEFORE implementation.
+Agent-Optimized TDD — tests crystallize understanding of security properties, not
+chase coverage numbers.
+
+> This phase addresses cryptographic testing gaps identified through post-Phase-4
+> security audit. Each gap was discovered through SDD's "discover gap → stop →
+> update spec" cycle. Gaps are ordered by risk: CRITICAL items affect fundamental
+> security properties; HIGH items affect cryptographic correctness on adversarial
+> inputs; MEDIUM items affect robustness and defense-in-depth.
+
+---
+
+### Priority: CRITICAL — Security Properties
+
+These gaps affect fundamental security guarantees. A cryptography library that does
+not verify its own security properties is making promises it cannot keep.
+
+---
+
+### 5.1 Shamir Secret Sharing: Threshold Security Verification
+
+**Gap:** `combine()` performs Lagrange interpolation on whatever shares are provided
+without validating that the number of shares meets the threshold. Given t-1 shares,
+it returns `Ok(garbage)` — not an error. The fundamental security property of Shamir's
+scheme ("t-1 shares reveal nothing about the secret") is **never tested**.
+
+**Location:** `crates/arcanum-threshold/src/shamir.rs:123-160`
+
+**Security Property Under Test:** Information-theoretic security — any t-1 shares must
+produce a result that is computationally indistinguishable from random data. The
+boundary between t-1 (reveals nothing) and t (reveals everything) must be exact.
+
+**Test Approach:**
+
+```rust
+// crates/arcanum-threshold/src/shamir.rs (tests module)
+
+/// Verify that t-1 shares produce incorrect reconstruction.
+/// This is the FUNDAMENTAL security property of Shamir's scheme.
+#[test]
+fn test_combine_with_insufficient_shares_produces_wrong_secret() {
+    let secret = b"top secret data that must stay hidden";
+    let threshold = 3;
+    let total = 5;
+
+    let shares = split(secret, threshold, total).unwrap();
+
+    // Try every possible subset of t-1 shares
+    for subset in shares.iter().combinations(threshold - 1) {
+        let result = combine(&subset).unwrap(); // Returns Ok, but wrong data
+        assert_ne!(
+            result.as_slice(), secret,
+            "t-1 shares MUST NOT reconstruct the original secret"
+        );
+    }
+}
+
+/// Verify the boundary: exactly t shares always succeeds.
+#[test]
+fn test_combine_with_exactly_threshold_shares_succeeds() {
+    let secret = b"threshold boundary test";
+    let threshold = 3;
+    let total = 5;
+
+    let shares = split(secret, threshold, total).unwrap();
+
+    // Every t-sized subset must reconstruct correctly
+    for subset in shares.iter().combinations(threshold) {
+        let result = combine(&subset).unwrap();
+        assert_eq!(result.as_slice(), secret);
+    }
+}
+
+/// Statistical test: t-1 share reconstructions should appear random.
+#[test]
+fn test_insufficient_shares_produce_random_looking_output() {
+    let secret = vec![0xAA; 32]; // Known pattern
+    let threshold = 3;
+    let total = 5;
+
+    let shares = split(&secret, threshold, total).unwrap();
+    let partial = &shares[..threshold - 1];
+    let wrong_result = combine(partial).unwrap();
+
+    // Check byte distribution isn't suspiciously close to the secret
+    let matching_bytes = wrong_result.iter()
+        .zip(secret.iter())
+        .filter(|(a, b)| a == b)
+        .count();
+
+    // With 32 random bytes, expected matching ≈ 32/256 ≈ 0.125
+    // Allow generous margin but catch if all/most bytes match
+    assert!(
+        matching_bytes < secret.len() / 2,
+        "t-1 reconstruction matched {}/{} bytes — suspiciously close to secret",
+        matching_bytes, secret.len()
+    );
+}
+
+/// Boundary test across multiple threshold/total configurations.
+#[test]
+fn test_threshold_boundary_multiple_configurations() {
+    for (threshold, total) in [(2, 3), (2, 5), (3, 5), (5, 10), (10, 20)] {
+        let secret = b"boundary test secret";
+        let shares = split(secret, threshold, total).unwrap();
+
+        // t shares: must succeed
+        let result = combine(&shares[..threshold]).unwrap();
+        assert_eq!(result.as_slice(), secret, "t={},n={}: t shares failed", threshold, total);
+
+        // t-1 shares: must produce wrong result
+        let wrong = combine(&shares[..threshold - 1]).unwrap();
+        assert_ne!(wrong.as_slice(), secret, "t={},n={}: t-1 shares matched", threshold, total);
+    }
+}
+```
+
+**Acceptance Criteria:**
+- Every (t-1)-subset produces a result ≠ the original secret
+- Every t-subset produces a result = the original secret
+- The boundary between t-1 and t is exact across configurations (2,3), (2,5), (3,5), (5,10), (10,20)
+- Statistical test confirms t-1 results look random, not correlated with the secret
+
+---
+
+### 5.2 FROST Threshold Signatures: Adversarial Participant Testing
+
+**Gap:** FROST implementation has only 3 happy-path tests: trusted dealer setup, basic
+signing flow, wrong message verification. Zero tests for adversarial participants,
+quorum failure, or Byzantine behavior. For a threshold signature scheme, the security
+boundary (who can sign vs. who cannot) is the entire point.
+
+**Location:** `crates/arcanum-threshold/src/frost.rs:392-510`
+
+**Security Properties Under Test:**
+- Signing with fewer than threshold participants must fail
+- Corrupted signature shares must be detected during aggregation
+- Duplicate participant indices must be rejected
+- The scheme must be unforgeable under chosen-message attacks
+
+**Test Approach:**
+
+```rust
+// crates/arcanum-threshold/src/frost.rs (tests module)
+
+/// Signing with t-1 participants must fail.
+#[test]
+fn test_frost_insufficient_signers_fails() {
+    let (shares, pubkey_package) = frost_keygen(min_signers: 3, max_signers: 5);
+    let message = b"test message";
+
+    // Attempt signing with only 2 of 3 required signers
+    // This should fail at the commitment or aggregation stage
+    let participants = &shares[..2];
+    let result = frost_sign(participants, &pubkey_package, message);
+    assert!(result.is_err(), "Signing with t-1 participants must fail");
+}
+
+/// Corrupted commitment/share must be detected during aggregation.
+#[test]
+fn test_frost_corrupted_signature_share_detected() {
+    let (shares, pubkey_package) = frost_keygen(3, 5);
+    let message = b"integrity test";
+
+    // Perform round 1 (commitments) honestly
+    let (nonces, commitments) = frost_round1(&shares[..3]);
+
+    // Perform round 2 (signature shares) — corrupt one share
+    let mut sig_shares = frost_round2(&shares[..3], &nonces, &commitments, message);
+    // Flip bits in the first signature share
+    corrupt_signature_share(&mut sig_shares[0]);
+
+    // Aggregation must detect the corrupted share
+    let result = frost_aggregate(&sig_shares, &commitments, &pubkey_package, message);
+    assert!(result.is_err(), "Corrupted signature share must be detected");
+}
+
+/// Duplicate participant identifiers must be rejected.
+#[test]
+fn test_frost_duplicate_participant_rejected() {
+    let (shares, pubkey_package) = frost_keygen(2, 5);
+    let message = b"duplicate test";
+
+    // Attempt to use the same signer identity twice
+    let duplicated = vec![shares[0].clone(), shares[0].clone()];
+    let result = frost_sign(&duplicated, &pubkey_package, message);
+    assert!(result.is_err(), "Duplicate participant IDs must be rejected");
+}
+
+/// Verify the full flow with exact threshold across configurations.
+#[test]
+fn test_frost_exact_threshold_multiple_configurations() {
+    for (min_signers, max_signers) in [(2, 3), (3, 5), (5, 10)] {
+        let (shares, pubkey_package) = frost_keygen(min_signers, max_signers);
+        let message = b"threshold boundary";
+
+        let signers = &shares[..min_signers];
+        let signature = frost_sign(signers, &pubkey_package, message)
+            .expect(&format!("{}-of-{}: exact threshold must succeed", min_signers, max_signers));
+
+        assert!(frost_verify(&pubkey_package, message, &signature).is_ok());
+    }
+}
+
+/// Wrong message fails verification even with valid signers.
+/// (Extends existing test_frost_wrong_message_fails with more cases.)
+#[test]
+fn test_frost_signature_not_transferable_to_different_message() {
+    let (shares, pubkey_package) = frost_keygen(2, 3);
+    let message_a = b"message A";
+    let message_b = b"message B";
+
+    let signature = frost_sign(&shares[..2], &pubkey_package, message_a).unwrap();
+
+    // Signature for message_a must not verify against message_b
+    assert!(frost_verify(&pubkey_package, message_b, &signature).is_err());
+    // But must verify against message_a
+    assert!(frost_verify(&pubkey_package, message_a, &signature).is_ok());
+}
+```
+
+**Acceptance Criteria:**
+- Sub-threshold signing attempts produce clear errors
+- Corrupted shares are detected during aggregation (not silently accepted)
+- Duplicate identifiers are rejected
+- Multiple threshold configurations (2-of-3, 3-of-5, 5-of-10) are verified
+- Signatures are non-transferable between messages
+
+---
+
+### Priority: HIGH — Cryptographic Correctness
+
+These gaps affect correctness of cryptographic operations. The library may produce
+valid results in common cases but could fail on edge-case inputs that real-world
+adversaries specifically craft.
+
+---
+
+### 5.3 Wycheproof Test Vectors: AES-GCM-SIV and XChaCha20-Poly1305
+
+**Gap:** Wycheproof edge-case vectors exist for AES-GCM (tested, 570/571 lines
+covered) and ChaCha20-Poly1305 (tested). But NOT for AES-GCM-SIV or
+XChaCha20-Poly1305. These variants have distinct failure modes:
+- **GCM-SIV**: Nonce-misuse resistance — must produce valid ciphertext even with
+  repeated nonces (unlike GCM which catastrophically fails)
+- **XChaCha20**: Extended nonce derivation via HChaCha20 — subkey derivation bugs
+  would be invisible to standard ChaCha20 tests
+
+**Location:**
+- Existing: `crates/arcanum-symmetric/tests/wycheproof_vectors.rs` (AES-GCM, ChaCha20-Poly1305)
+- Missing: AES-256-GCM-SIV vectors, XChaCha20-Poly1305 cross-implementation vectors
+
+**Test Approach:**
+
+```rust
+// crates/arcanum-symmetric/tests/wycheproof_vectors.rs (additions)
+
+/// AES-GCM-SIV Wycheproof vectors.
+/// Source: google/wycheproof aes_gcm_siv_test.json
+mod aes_gcm_siv_wycheproof {
+    use arcanum_symmetric::{Aes256GcmSiv, SymmetricCipher};
+
+    #[test]
+    fn test_aes_256_gcm_siv_wycheproof() {
+        let test_groups = load_wycheproof_json("aes_gcm_siv_test.json");
+
+        for group in &test_groups {
+            for tc in &group.tests {
+                if tc.key.len() != 32 { continue; } // AES-256 only
+
+                let cipher = Aes256GcmSiv::new(&tc.key);
+                let result = cipher.open(&tc.iv, &tc.aad, &[tc.ct.clone(), tc.tag.clone()].concat());
+
+                match tc.result.as_str() {
+                    "valid" => {
+                        let pt = result.expect(&format!("tc_id={}: valid case failed", tc.tc_id));
+                        assert_eq!(pt, tc.msg, "tc_id={}: wrong plaintext", tc.tc_id);
+                    }
+                    "invalid" => {
+                        assert!(result.is_err(), "tc_id={}: invalid case accepted", tc.tc_id);
+                    }
+                    "acceptable" => { /* implementation-dependent */ }
+                    _ => panic!("Unknown result type: {}", tc.result),
+                }
+            }
+        }
+    }
+}
+
+/// XChaCha20-Poly1305 cross-implementation vectors.
+/// No official Wycheproof suite exists; use libsodium + RFC 8439 extended vectors.
+mod xchacha20_poly1305_vectors {
+    #[test]
+    fn test_xchacha20_libsodium_test_vector() {
+        // Cross-reference with libsodium's crypto_aead_xchacha20poly1305_ietf test vectors
+    }
+
+    #[test]
+    fn test_xchacha20_nonce_domain_separation() {
+        // Two different 24-byte nonces with same key must produce
+        // different ciphertexts — verifies HChaCha20 derivation works
+        let key = [0x42u8; 32];
+        let nonce_a = [0x01u8; 24];
+        let nonce_b = [0x02u8; 24];
+        let plaintext = b"domain separation test";
+
+        let ct_a = encrypt(&key, &nonce_a, &[], plaintext);
+        let ct_b = encrypt(&key, &nonce_b, &[], plaintext);
+        assert_ne!(ct_a, ct_b, "Different nonces must produce different ciphertexts");
+    }
+
+    #[test]
+    fn test_xchacha20_empty_plaintext_and_aad_combinations() {
+        // Empty plaintext with AAD, AAD with plaintext, both empty
+    }
+}
+```
+
+**Acceptance Criteria:**
+- All "valid" Wycheproof AES-GCM-SIV vectors decrypt correctly
+- All "invalid" Wycheproof AES-GCM-SIV vectors are rejected
+- XChaCha20-Poly1305 passes at least one cross-implementation KAT (libsodium)
+- HChaCha20 subkey derivation produces correct domain separation
+
+---
+
+### 5.4 Constant-Time Verification: Apply TimingTest to Crypto Operations
+
+**Gap:** `arcanum-verify` contains a complete dudect-inspired timing analysis framework
+(`TimingTest` with Welch's t-test, configurable iterations, online/batched modes).
+This framework is **never applied to any actual cryptographic operation**. It tests
+itself but verifies nothing about the library's timing properties.
+
+**Location:**
+- Framework: `crates/arcanum-verify/src/timing.rs` (TimingTest struct, ~165 lines covered)
+- Never imported from: any other crate's test suite
+
+**Security Property Under Test:** Key-dependent operations (comparison, decryption,
+signing) should not exhibit statistically detectable timing variation.
+
+**Test Approach:**
+
+```rust
+// crates/arcanum-verify/tests/crypto_timing_tests.rs (new integration test)
+
+use arcanum_verify::timing::TimingTest;
+use arcanum_symmetric::{Aes256Gcm, SymmetricCipher};
+use arcanum_asymmetric::x25519::{X25519PrivateKey, X25519PublicKey};
+
+/// Verify AEAD tag verification is constant-time.
+/// Class A: correct tag. Class B: wrong tag (first byte flipped).
+/// A timing leak here would let attackers forge authentication tags.
+#[test]
+fn test_aes_gcm_tag_verification_constant_time() {
+    let key = [0x42u8; 32];
+    let nonce = [0x00u8; 12];
+    let cipher = Aes256Gcm::new(&key);
+    let mut ct = b"test plaintext".to_vec();
+    let tag = cipher.encrypt_in_place(&nonce, &[], &mut ct);
+
+    let mut wrong_tag = tag;
+    wrong_tag[0] ^= 0xFF;
+
+    let timing = TimingTest::new(
+        || { let _ = cipher.decrypt_in_place(&nonce, &[], &mut ct.clone(), &tag); },
+        || { let _ = cipher.decrypt_in_place(&nonce, &[], &mut ct.clone(), &wrong_tag); },
+    );
+
+    let result = timing.run(10_000);
+    assert!(
+        result.t_statistic.abs() < 4.5,
+        "Timing leak in AES-GCM tag verification: t={:.2}",
+        result.t_statistic
+    );
+}
+
+/// Verify X25519 key exchange doesn't leak key bits through timing.
+/// Class A: small scalar. Class B: large scalar.
+#[test]
+fn test_x25519_constant_time_scalar_mult() {
+    let mut small_key = [0u8; 32];
+    small_key[0] = 1;
+    let mut large_key = [0xFF; 32];
+
+    let peer_public = X25519PublicKey::generate();
+
+    let timing = TimingTest::new(
+        || { let _ = x25519_diffie_hellman(&small_key, &peer_public); },
+        || { let _ = x25519_diffie_hellman(&large_key, &peer_public); },
+    );
+
+    let result = timing.run(10_000);
+    assert!(
+        result.t_statistic.abs() < 4.5,
+        "Timing leak in X25519 scalar multiplication: t={:.2}",
+        result.t_statistic
+    );
+}
+
+/// Verify Ed25519 signature verification doesn't leak message content.
+#[test]
+fn test_ed25519_verify_constant_time() {
+    // Class A: valid signature. Class B: invalid signature.
+    // Verification time must not depend on signature validity.
+}
+```
+
+**Acceptance Criteria:**
+- TimingTest applied to ≥3 crypto operations: AEAD tag verification, key exchange, signature verification
+- All pass with |t-statistic| < 4.5 (standard dudect threshold)
+- Tests run in CI without special hardware (software-only timing analysis)
+- False positive rate documented (timing tests can flake in noisy CI environments)
+
+---
+
+### 5.5 ECDH Invalid Point Rejection: P-256, P-384, secp256k1
+
+**Gap:** X25519 has explicit low-order point rejection tests (Phase 1.1). The ECDH
+implementations for P-256, P-384, and secp256k1 have **no equivalent tests** for
+invalid curve points, identity points, or small-subgroup inputs. These curves use
+Weierstrass form where invalid points are a real attack vector (unlike Montgomery
+curves where clamping provides some protection).
+
+**Location:**
+- Tested: `crates/arcanum-asymmetric/src/x25519.rs` (low-order point checks)
+- Untested: `crates/arcanum-asymmetric/src/ecdh.rs` (7 tests, all happy-path)
+- Existing Wycheproof: `crates/arcanum-asymmetric/tests/wycheproof_x25519.rs` (X25519 only)
+
+**Security Property Under Test:** ECDH must reject public keys that are not on the
+curve, are the point at infinity, or have invalid SEC1 encodings. Failure to reject
+allows small-subgroup attacks that recover the private key.
+
+**Test Approach:**
+
+```rust
+// crates/arcanum-asymmetric/src/ecdh.rs (tests module)
+
+/// Point not on curve must be rejected (P-256).
+#[test]
+fn test_p256_rejects_off_curve_point() {
+    // Construct SEC1 uncompressed point with arbitrary coordinates
+    let mut bad_point = [0u8; 65];
+    bad_point[0] = 0x04; // Uncompressed prefix
+    bad_point[1..33].fill(0x01); // x-coordinate
+    bad_point[33..65].fill(0x02); // y-coordinate (not on curve)
+
+    let result = EcdhKeyPair::from_public_sec1_bytes(EcCurve::P256, &bad_point);
+    assert!(result.is_err(), "Off-curve P-256 point must be rejected");
+}
+
+/// Identity point (point at infinity) must be rejected.
+#[test]
+fn test_p256_rejects_identity_point() {
+    let identity = [0x00]; // SEC1 encoding of point at infinity
+    let result = EcdhKeyPair::from_public_sec1_bytes(EcCurve::P256, &identity);
+    assert!(result.is_err(), "P-256 identity point must be rejected");
+}
+
+/// Malformed SEC1 encodings must be rejected.
+#[test]
+fn test_p256_rejects_malformed_encodings() {
+    let cases = vec![
+        vec![],                    // Empty
+        vec![0x04],                // Too short for uncompressed
+        vec![0x03; 33],            // Valid compressed prefix but invalid point
+        vec![0x05; 65],            // Invalid prefix byte
+        vec![0x04; 64],            // Wrong length for uncompressed
+    ];
+    for (i, bad) in cases.iter().enumerate() {
+        let result = EcdhKeyPair::from_public_sec1_bytes(EcCurve::P256, bad);
+        assert!(result.is_err(), "Malformed case {} must be rejected", i);
+    }
+}
+
+/// Repeat for P-384.
+#[test]
+fn test_p384_rejects_off_curve_point() { /* Same pattern, 97-byte uncompressed */ }
+
+#[test]
+fn test_p384_rejects_identity_point() { /* Same pattern */ }
+
+/// Repeat for secp256k1.
+#[test]
+fn test_secp256k1_rejects_off_curve_point() { /* Same pattern, 65-byte uncompressed */ }
+
+#[test]
+fn test_secp256k1_rejects_identity_point() { /* Same pattern */ }
+
+/// Wycheproof ECDH vectors for invalid public keys.
+/// Ensures the underlying library correctly validates curve points.
+#[test]
+fn test_ecdh_wycheproof_invalid_public_keys() {
+    for curve_file in ["ecdh_secp256r1_test.json", "ecdh_secp384r1_test.json", "ecdh_secp256k1_test.json"] {
+        let test_groups = load_wycheproof_json(curve_file);
+        for tc in test_groups.invalid_cases() {
+            let result = ecdh_compute(&tc.private_key, &tc.public_key);
+            assert!(result.is_err(), "{}: tc_id={} invalid case accepted", curve_file, tc.tc_id);
+        }
+    }
+}
+```
+
+**Acceptance Criteria:**
+- Each curve (P-256, P-384, secp256k1) rejects: off-curve points, identity point, malformed SEC1 encodings
+- Wycheproof ECDH invalid-case vectors pass for all three curves
+- No shared secret is ever returned for an invalid peer public key
+
+---
+
+### Priority: MEDIUM — Robustness & Defense in Depth
+
+These gaps do not affect correctness of primary operations but represent missing
+defense-in-depth measures for production deployment.
+
+---
+
+### 5.6 NonceTracker Concurrent Access Testing
+
+**Gap:** `NonceTracker` uses `parking_lot::Mutex` for thread safety but has zero
+concurrent access tests. In a multi-threaded server, nonce replay detection is
+useless if the tracker has race conditions under contention.
+
+**Location:** `crates/arcanum-core/src/nonce.rs` (NonceTracker struct with Mutex)
+
+**Test Approach:**
+
+```rust
+// crates/arcanum-core/src/nonce.rs (tests module)
+
+#[test]
+fn test_nonce_tracker_concurrent_same_nonce() {
+    let tracker = Arc::new(NonceTracker::new(1000));
+    let barrier = Arc::new(std::sync::Barrier::new(10));
+    let mut handles = vec![];
+
+    // 10 threads race to touch the same nonce
+    for _ in 0..10 {
+        let tracker = tracker.clone();
+        let barrier = barrier.clone();
+        handles.push(std::thread::spawn(move || {
+            barrier.wait(); // Synchronize start
+            tracker.check_and_touch(&[0x42; 12])
+        }));
+    }
+
+    let results: Vec<bool> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+
+    // Exactly one thread should see the nonce as "new"
+    let successes = results.iter().filter(|&&r| r).count();
+    assert_eq!(successes, 1, "Exactly one thread must accept the nonce, got {}", successes);
+}
+
+#[test]
+fn test_nonce_tracker_concurrent_distinct_nonces() {
+    let tracker = Arc::new(NonceTracker::new(1000));
+    let barrier = Arc::new(std::sync::Barrier::new(10));
+    let mut handles = vec![];
+
+    // 10 threads each touch a unique nonce
+    for i in 0u8..10 {
+        let tracker = tracker.clone();
+        let barrier = barrier.clone();
+        handles.push(std::thread::spawn(move || {
+            barrier.wait();
+            let nonce = [i; 12];
+            tracker.check_and_touch(&nonce)
+        }));
+    }
+
+    let results: Vec<bool> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+
+    // All threads should succeed (distinct nonces)
+    assert!(results.iter().all(|&r| r), "All distinct nonces must be accepted");
+}
+```
+
+**Acceptance Criteria:**
+- Concurrent check_and_touch on the same nonce: exactly 1 success, 9 rejections
+- Concurrent check_and_touch on distinct nonces: all succeed
+- No panics, deadlocks, or data races under contention
+
+---
+
+### 5.7 Feature-Flag Test Coverage in CI
+
+**Gap:** Several modules with their own test suites are behind non-default feature
+flags and never execute in default `cargo test`:
+- `schnorr` feature in arcanum-signatures: 7 tests, 0 run by default
+- `ml-dsa-native` feature in arcanum-pqc: full FIPS 204 native impl tests, 0 run by default
+- `slh-dsa` feature in arcanum-pqc: FIPS 205 tests, 0 run by default
+
+**Location:**
+- `crates/arcanum-signatures/Cargo.toml`: `default = ["std", "ed25519", "ecdsa"]`
+- `crates/arcanum-pqc/Cargo.toml`: `default = ["std", "ml-kem"]`
+
+**This is a CI configuration task, not new test code.**
+
+**Test Approach:**
+
+```yaml
+# .github/workflows/feature-matrix.yml
+name: Feature Matrix Tests
+
+on: [push, pull_request]
+
+jobs:
+  feature-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: "All features"
+            args: "--all-features"
+          - name: "Schnorr signatures"
+            args: "-p arcanum-signatures --features schnorr"
+          - name: "ML-DSA native"
+            args: "-p arcanum-pqc --features ml-dsa-native"
+          - name: "SLH-DSA"
+            args: "-p arcanum-pqc --features slh-dsa"
+          - name: "no_std + alloc"
+            args: "-p arcanum-core --no-default-features --features alloc"
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo test ${{ matrix.args }}
+```
+
+**Acceptance Criteria:**
+- CI runs `cargo test --all-features` on every PR
+- Schnorr, ML-DSA-native, and SLH-DSA tests execute and pass in CI
+- no_std compilation is verified via `--no-default-features --features alloc`
+- Feature combinations that compile today continue to compile (no regressions)
+
+---
+
+### 5.8 Fuzz Target Expansion
+
+**Gap:** 10 fuzz targets exist but miss several attack surfaces:
+- **XChaCha20-Poly1305**: Extended nonce derivation (HChaCha20) is unfuzzed
+- **AES-GCM-SIV**: Nonce-misuse resistance path is unfuzzed
+- **FROST**: Multi-party protocol with structured inputs
+- **P-384 / secp256k1 ECDH**: Only P-256 is fuzzed
+- **RSA** (if present): Key parsing, signature verification
+
+Existing targets: `fuzz_aes_gcm`, `fuzz_blake3`, `fuzz_chacha20poly1305`, `fuzz_ed25519`,
+`fuzz_encoding`, `fuzz_ml_dsa`, `fuzz_ml_kem`, `fuzz_p256`, `fuzz_shamir`, `fuzz_x25519`
+
+**Location:** `fuzz/fuzz_targets/` (10 existing `[[bin]]` entries in `fuzz/Cargo.toml`)
+
+**Test Approach:**
+
+```rust
+// fuzz/fuzz_targets/fuzz_xchacha20.rs
+#![no_main]
+use libfuzzer_sys::fuzz_target;
+use arcanum_symmetric::{XChaCha20Poly1305, SymmetricCipher};
+
+fuzz_target!(|data: &[u8]| {
+    if data.len() < 32 + 24 { return; }
+    let (key, rest) = data.split_at(32);
+    let (nonce, plaintext) = rest.split_at(24);
+
+    let key: [u8; 32] = key.try_into().unwrap();
+    let nonce: [u8; 24] = nonce.try_into().unwrap();
+
+    let cipher = XChaCha20Poly1305::new(&key);
+    if let Ok(ct) = cipher.seal(&nonce, &[], plaintext) {
+        let pt = cipher.open(&nonce, &[], &ct).unwrap();
+        assert_eq!(pt, plaintext);
+    }
+});
+
+// fuzz/fuzz_targets/fuzz_aes_gcm_siv.rs — same pattern with 12-byte nonce
+// fuzz/fuzz_targets/fuzz_p384.rs — ECDH with arbitrary public keys
+// fuzz/fuzz_targets/fuzz_secp256k1.rs — ECDH with arbitrary public keys
+// fuzz/fuzz_targets/fuzz_frost.rs — structured input: threshold, signers, message
+```
+
+**Acceptance Criteria:**
+- 5+ new fuzz targets added (XChaCha20, GCM-SIV, P-384, secp256k1, FROST)
+- Each target runs for ≥1 minute without crashes
+- Roundtrip property verified in all encrypt/decrypt fuzz targets
+- Updated `fuzz/Cargo.toml` with new `[[bin]]` entries and dependencies
+
+---
+
+### 5.9 ML-KEM Implicit Rejection Depth
+
+**Gap:** ML-KEM implicit rejection (FIPS 203 §7.3) is tested with 1 case:
+decapsulating a random ciphertext returns a shared secret ≠ the legitimate one.
+Missing: verification that the implicit rejection shared secret is **deterministic**
+(same wrong ciphertext → same rejection secret) and **varies** across different
+invalid ciphertexts (not a fixed constant like all-zeros).
+
+**Location:** `crates/arcanum-pqc/src/kem.rs` (existing `test_ml_kem_*` tests)
+
+**Test Approach:**
+
+```rust
+// crates/arcanum-pqc/src/kem.rs (tests module)
+
+/// Implicit rejection must be deterministic: same bad ciphertext → same result.
+#[test]
+fn test_ml_kem_implicit_rejection_is_deterministic() {
+    let (pk, sk) = MlKem768::generate();
+    let bad_ct = vec![0xAB; ML_KEM_768_CT_SIZE];
+
+    let ss1 = sk.decapsulate(&bad_ct);
+    let ss2 = sk.decapsulate(&bad_ct);
+    assert_eq!(ss1, ss2, "Implicit rejection must be deterministic");
+}
+
+/// Different invalid ciphertexts must produce different rejection secrets.
+#[test]
+fn test_ml_kem_implicit_rejection_varies_by_ciphertext() {
+    let (pk, sk) = MlKem768::generate();
+    let bad_ct_a = vec![0xAA; ML_KEM_768_CT_SIZE];
+    let bad_ct_b = vec![0xBB; ML_KEM_768_CT_SIZE];
+
+    let ss_a = sk.decapsulate(&bad_ct_a);
+    let ss_b = sk.decapsulate(&bad_ct_b);
+    assert_ne!(ss_a, ss_b, "Different bad CTs must produce different rejection secrets");
+}
+
+/// Rejection secret must not be all-zeros or another trivial constant.
+#[test]
+fn test_ml_kem_implicit_rejection_not_trivial() {
+    let (pk, sk) = MlKem768::generate();
+    let bad_ct = vec![0x00; ML_KEM_768_CT_SIZE];
+
+    let ss = sk.decapsulate(&bad_ct);
+    assert!(!ss.iter().all(|&b| b == 0), "Rejection secret must not be all-zeros");
+    assert!(!ss.iter().all(|&b| b == 0xFF), "Rejection secret must not be all-ones");
+}
+```
+
+**Acceptance Criteria:**
+- Deterministic: same invalid ciphertext → same rejection secret
+- Varies: different invalid ciphertexts → different rejection secrets
+- Not trivial: rejection secret ≠ all-zeros, all-ones, or the valid shared secret
+
+---
+
+### 5.10 Zeroization Runtime Verification
+
+**Gap:** `SecretKey`, `SecretBuffer`, and other sensitive types implement `Drop` with
+zeroization, but no test verifies that memory is actually zeroed after drop. The
+compiler may optimize away zeroization writes that have no observable effect.
+
+**Location:**
+- `crates/arcanum-core/src/key.rs` (SecretKey Drop impl)
+- `crates/arcanum-core/src/buffer.rs` (SecretBuffer/SecureVec Drop impls)
+
+**Test Approach:**
+
+```rust
+// crates/arcanum-core/tests/zeroization_test.rs
+
+/// Verify that SecretBuffer memory is zeroed after drop.
+///
+/// IMPORTANT: This test reads memory after deallocation, which is
+/// technically undefined behavior. It serves as a smoke test in debug
+/// mode where the allocator is less likely to reuse memory immediately.
+/// For production assurance, rely on `zeroize` crate's volatile writes.
+#[test]
+fn test_secret_buffer_zeroized_on_drop() {
+    let ptr: *const u8;
+    let len: usize;
+    {
+        let buf = SecretBuffer::from(vec![0x42u8; 64]);
+        ptr = buf.as_ref().as_ptr();
+        len = buf.as_ref().len();
+    } // buf dropped, zeroization should occur
+
+    // Smoke test: check if memory was zeroed
+    // This is UB and may flake — that's acceptable for a smoke test
+    let zeroed = unsafe { std::slice::from_raw_parts(ptr, len) };
+    assert!(
+        zeroed.iter().all(|&b| b == 0),
+        "Secret memory was not zeroed after drop"
+    );
+}
+
+/// Verify zeroize crate integration: types derive ZeroizeOnDrop.
+/// This is a compile-time check — if it compiles, the derive is present.
+#[test]
+fn test_secret_key_implements_zeroize() {
+    fn assert_zeroize<T: zeroize::Zeroize>() {}
+    fn assert_zeroize_on_drop<T: zeroize::ZeroizeOnDrop>() {}
+
+    // These should compile if the derives are in place
+    assert_zeroize::<SecretKey>();
+    assert_zeroize_on_drop::<SecretKey>();
+}
+```
+
+**Acceptance Criteria:**
+- Smoke test passes in debug mode (`cargo test` without `--release`)
+- `Zeroize` and `ZeroizeOnDrop` traits are implemented on all secret types
+- Document that release-mode zeroization relies on `zeroize` crate's volatile write path
+
+---
+
+### 5.11 Nonce Misuse Documentation and Integration Audit
+
+**Gap:** `NonceTracker` exists as standalone infrastructure but is **not integrated**
+into any cipher API. Users must manually create a tracker and call
+`check_and_touch()` before every encryption. This is error-prone — nonce reuse in
+AES-GCM is catastrophic (leaks the authentication key via polynomial GCD).
+
+**Location:**
+- Standalone: `crates/arcanum-core/src/nonce.rs` (NonceTracker, NonceGenerator)
+- Not integrated: `crates/arcanum-symmetric/src/aes_ciphers.rs`, `chacha_ciphers.rs`
+
+**This is a DOCUMENTATION + DESIGN task.** Per SDD: if the spec promises "nonce reuse
+prevention" but the API doesn't enforce it, the spec must either be updated to reflect
+reality or the API must be changed.
+
+**Test Approach:**
+
+```rust
+// crates/arcanum-symmetric/tests/nonce_misuse_documentation.rs
+
+/// Document current behavior: ciphers allow nonce reuse without warning.
+/// This test exists to make the behavior EXPLICIT, not to endorse it.
+#[test]
+fn test_aes_gcm_allows_nonce_reuse_without_tracker() {
+    let key = [0x42u8; 32];
+    let nonce = [0x00u8; 12];
+    let cipher = Aes256Gcm::new(&key);
+
+    // Encrypting twice with the same nonce succeeds (THIS IS DANGEROUS)
+    let ct1 = cipher.seal(&nonce, &[], b"message 1").unwrap();
+    let ct2 = cipher.seal(&nonce, &[], b"message 2").unwrap();
+
+    // Both succeed — the API does NOT prevent nonce reuse
+    assert_ne!(ct1, ct2, "Same nonce + different plaintext = different ciphertext");
+    // In AES-GCM, this leaks the GHASH key. The API should warn about this.
+}
+
+/// Demonstrate correct usage with NonceTracker.
+#[test]
+fn test_nonce_tracker_prevents_reuse_pattern() {
+    let tracker = NonceTracker::new(1000);
+    let cipher = Aes256Gcm::new(&[0x42u8; 32]);
+    let nonce = [0x00u8; 12];
+
+    assert!(tracker.check_and_touch(&nonce), "First use: accepted");
+    let _ct = cipher.seal(&nonce, &[], b"message 1").unwrap();
+
+    assert!(!tracker.check_and_touch(&nonce), "Reuse: rejected");
+    // User should NOT encrypt again with this nonce
+}
+
+/// Demonstrate correct usage with NonceGenerator (counter mode).
+#[test]
+fn test_nonce_generator_counter_mode_pattern() {
+    let mut gen = NonceGenerator::new_counter();
+    let cipher = Aes256Gcm::new(&[0x42u8; 32]);
+
+    let nonce1 = gen.next();
+    let nonce2 = gen.next();
+    assert_ne!(nonce1, nonce2, "Counter mode generates unique nonces");
+
+    let ct1 = cipher.seal(&nonce1, &[], b"message 1").unwrap();
+    let ct2 = cipher.seal(&nonce2, &[], b"message 2").unwrap();
+    // Safe: different nonces used
+}
+```
+
+**Design Decision Required** (to be resolved during implementation):
+- **Option A: Safe wrapper.** Add `NonceManagedCipher<C>` that integrates NonceTracker
+  and returns `Err(NonceReuse)` if the same nonce is used twice. Users opt in.
+- **Option B: Documentation only.** Add prominent warnings to `seal()`/`encrypt()` docs
+  explaining the nonce reuse risk, with code examples showing NonceTracker usage.
+- **Option C: Counter-mode default.** `NonceGenerator::new_counter()` as the recommended
+  pattern in all examples, with raw nonce APIs marked as advanced/unsafe.
+
+**Acceptance Criteria:**
+- Documentation tests show both the dangerous pattern and the safe pattern
+- API docs for `seal()`/`encrypt()` warn about nonce reuse consequences
+- Design decision (A, B, or C) documented in this section after implementation
+
+---
+
 ## Summary Checklist
 
 ### Phase 1: Critical Security (MUST before any release) — ✅ COMPLETE
@@ -1169,6 +2057,24 @@ of platform-specific and feature-gated code not exercised in a single default ru
 - [x] Set up fuzz testing (+2 new fuzz targets: shamir, encoding)
 - [x] Add property-based tests (+12 proptests across 2 crates)
 - [x] Achieve >80% code coverage (81% default-config app-level; see 4.4 for CI action items)
+
+### Phase 5: Cryptographic Assurance Testing — 📋 SPECIFIED
+**CRITICAL — Security Properties:**
+- [ ] 5.1 Shamir threshold security verification (t-1 shares must produce wrong result)
+- [ ] 5.2 FROST adversarial participant testing (sub-threshold, corrupted shares, duplicates)
+
+**HIGH — Cryptographic Correctness:**
+- [ ] 5.3 Wycheproof vectors for AES-GCM-SIV + XChaCha20-Poly1305 cross-impl vectors
+- [ ] 5.4 Apply TimingTest to actual crypto operations (AEAD, key exchange, signatures)
+- [ ] 5.5 ECDH invalid point rejection for P-256, P-384, secp256k1
+
+**MEDIUM — Robustness & Defense in Depth:**
+- [ ] 5.6 NonceTracker concurrent access testing
+- [ ] 5.7 Feature-flag test coverage in CI (schnorr, ml-dsa-native, slh-dsa)
+- [ ] 5.8 Fuzz target expansion (+5 targets: XChaCha20, GCM-SIV, P-384, secp256k1, FROST)
+- [ ] 5.9 ML-KEM implicit rejection depth (deterministic, varies, non-trivial)
+- [ ] 5.10 Zeroization runtime verification (smoke test + trait checks)
+- [ ] 5.11 Nonce misuse documentation and integration audit (design decision required)
 
 ---
 
