@@ -1071,33 +1071,42 @@ These complement the existing proptests in `aes_ciphers.rs`.
 **Resolution:** Measured coverage with `cargo-tarpaulin`, analyzed gaps through SDD lens,
 and wrote 82 new tests that crystallize understanding of untested behavior.
 
-#### SDD Gap Discovery: Coverage Target Revision
+#### SDD Gap Discovery: Coverage Measurement Limitations
 
-**Gap identified:** The original ">80% code coverage" target was specified without
-accounting for architectural realities that make raw tarpaulin percentages misleading:
+**Gap identified:** The original ">80% code coverage" target assumed a single tarpaulin
+run would capture the full picture. In practice, several factors cause the raw percentage
+to undercount actual test quality:
 
-1. **Platform-specific SIMD code** (~7,500 lines in `arcanum-primitives`): AVX2, SHA-NI,
-   WASM SIMD codepaths that require specific hardware features. These are untestable in a
-   standard CI environment without those CPU extensions.
+1. **Platform-specific SIMD code** (~7,500 lines in `arcanum-primitives`): Multiple
+   codepaths exist for AVX2, SSE4.1, SHA-NI, WASM SIMD, and portable fallbacks. On any
+   single machine, only the codepath matching the host CPU executes — the rest are
+   compiled but not taken. This is correct behavior, not dead code. The matching paths
+   are well-covered (e.g., `chacha20_simd.rs`: 422/438 = 96%). Full coverage requires
+   CI matrix testing across multiple architectures (x86_64+AVX2, aarch64, wasm32).
 
-2. **Feature-gated PQC native implementations** (~1,395 lines in `ml_dsa/*`, `slh_dsa/*`):
-   Alternative implementations behind non-default feature flags. Default build uses upstream
-   crate wrappers instead.
+2. **PQC native implementations** (~2,500 lines in `ml_dsa/*`, `slh_dsa/*`): Full FIPS
+   204/205 implementations behind non-default feature flags (`ml-dsa-native`, `slh-dsa`).
+   These have their own tests (`#[cfg(feature = "ml-dsa-native")]`-gated), but default
+   `cargo test` uses the upstream crate wrappers instead. These SHOULD be tested via
+   `cargo test --features ml-dsa-native,slh-dsa` in CI.
 
 3. **Dual-backend feature gates** (`#[cfg(feature = "backend-native")]` vs
-   `#[cfg(not(...))]`): Only one path compiles per configuration, but tarpaulin
-   counts both.
+   `#[cfg(not(...))]`): Only one backend path compiles per configuration, but tarpaulin
+   counts source lines from both. Full coverage requires separate runs per backend.
 
 4. **Tarpaulin instrumentation crashes**: ptrace-based instrumentation segfaults on
    certain crypto SIMD code (`arcanum-hash` + `arcanum-primitives`), preventing
-   measurement of those crates.
+   measurement of those crates in the combined workspace run.
 
-**Revised target (SDD-corrected):** >80% coverage of reachable application-level code
-in the default build configuration.
+**Action items for CI:**
+- Run `cargo tarpaulin --features ml-dsa-native,slh-dsa` to cover PQC native impls
+- Add WASM target coverage via `wasm-pack test` for WASM SIMD paths
+- Consider CI matrix with `RUSTFLAGS="-C target-feature=+avx2"` vs portable builds
+- Use `--ignore-tests` or per-crate runs to work around tarpaulin segfaults
 
-**Result:** ~81% coverage of reachable app-level code (excluding primitives SIMD and
-feature-gated PQC internals). Raw tarpaulin workspace number is ~39% due to the
-~10,000 lines of unreachable SIMD/feature-gated code.
+**Default-configuration result:** ~81% coverage of application-level code exercised
+by default features. Raw tarpaulin workspace number is ~39% due to ~10,000 lines
+of platform-specific and feature-gated code not exercised in a single default run.
 
 #### Coverage improvement highlights
 
@@ -1159,7 +1168,7 @@ feature-gated PQC internals). Raw tarpaulin workspace number is ~39% due to the
 - [x] Add error path tests (+42 tests across 4 crates)
 - [x] Set up fuzz testing (+2 new fuzz targets: shamir, encoding)
 - [x] Add property-based tests (+12 proptests across 2 crates)
-- [x] Achieve >80% code coverage (81% reachable app-level; see SDD gap note in 4.4)
+- [x] Achieve >80% code coverage (81% default-config app-level; see 4.4 for CI action items)
 
 ---
 
