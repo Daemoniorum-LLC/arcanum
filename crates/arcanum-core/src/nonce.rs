@@ -708,4 +708,302 @@ mod tests {
             other => panic!("Expected NonceExhausted, got: {:?}", other),
         }
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // NONCETRACKER CONCURRENT ACCESS TESTS (Phase 5.6)
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    #[cfg(feature = "std")]
+    mod concurrent_nonce_tracker {
+        use super::*;
+        use std::sync::{Arc, Barrier};
+        use std::thread;
+
+        /// Test that concurrent check_and_touch on the SAME nonce results in exactly 1 success.
+        /// This verifies the mutex properly serializes access and detects races.
+        #[test]
+        fn test_concurrent_same_nonce_exactly_one_success() {
+            const NUM_THREADS: usize = 10;
+
+            let tracker = Arc::new(NonceTracker::<12>::new(1000));
+            let barrier = Arc::new(Barrier::new(NUM_THREADS));
+            let nonce = Nonce96::random();
+
+            let handles: Vec<_> = (0..NUM_THREADS)
+                .map(|_| {
+                    let tracker = Arc::clone(&tracker);
+                    let barrier = Arc::clone(&barrier);
+                    let nonce_clone = Nonce::new(*nonce.as_bytes());
+
+                    thread::spawn(move || {
+                        // Wait for all threads to be ready
+                        barrier.wait();
+                        // Race to touch the nonce
+                        tracker.check_and_touch(&nonce_clone)
+                    })
+                })
+                .collect();
+
+            let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+
+            let successes = results.iter().filter(|r| r.is_ok()).count();
+            let failures = results.iter().filter(|r| r.is_err()).count();
+
+            assert_eq!(successes, 1, "Exactly one thread should succeed in touching the nonce");
+            assert_eq!(failures, NUM_THREADS - 1, "All other threads should detect reuse");
+        }
+
+        /// Test that concurrent check_and_touch on DISTINCT nonces all succeed.
+        /// This verifies the tracker doesn't have false positives under contention.
+        #[test]
+        fn test_concurrent_distinct_nonces_all_succeed() {
+            const NUM_THREADS: usize = 50;
+
+            let tracker = Arc::new(NonceTracker::<12>::new(1000));
+            let barrier = Arc::new(Barrier::new(NUM_THREADS));
+
+            // Pre-generate distinct nonces for each thread
+            let nonces: Vec<Nonce96> = (0..NUM_THREADS)
+                .map(|_| Nonce96::random())
+                .collect();
+
+            let handles: Vec<_> = nonces
+                .into_iter()
+                .map(|nonce| {
+                    let tracker = Arc::clone(&tracker);
+                    let barrier = Arc::clone(&barrier);
+
+                    thread::spawn(move || {
+                        barrier.wait();
+                        tracker.check_and_touch(&nonce)
+                    })
+                })
+                .collect();
+
+            let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+
+            let successes = results.iter().filter(|r| r.is_ok()).count();
+            assert_eq!(successes, NUM_THREADS, "All threads with distinct nonces should succeed");
+            assert_eq!(tracker.len(), NUM_THREADS, "Tracker should contain all nonces");
+        }
+
+        /// Test that concurrent check (not touch) on the SAME nonce also results in exactly 1 success.
+        #[test]
+        fn test_concurrent_check_same_nonce_exactly_one_success() {
+            const NUM_THREADS: usize = 10;
+
+            let tracker = Arc::new(NonceTracker::<12>::new(1000));
+            let barrier = Arc::new(Barrier::new(NUM_THREADS));
+            let nonce = Nonce96::random();
+
+            let handles: Vec<_> = (0..NUM_THREADS)
+                .map(|_| {
+                    let tracker = Arc::clone(&tracker);
+                    let barrier = Arc::clone(&barrier);
+                    let nonce_clone = Nonce::new(*nonce.as_bytes());
+
+                    thread::spawn(move || {
+                        barrier.wait();
+                        tracker.check(&nonce_clone)
+                    })
+                })
+                .collect();
+
+            let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+
+            let successes = results.iter().filter(|r| r.is_ok()).count();
+            assert_eq!(successes, 1, "Exactly one thread should succeed");
+        }
+
+        /// Stress test: high contention with mixed same/different nonces.
+        /// Verifies no panics, deadlocks, or data corruption.
+        #[test]
+        fn test_concurrent_stress_no_panics_or_deadlocks() {
+            const NUM_THREADS: usize = 20;
+            const OPS_PER_THREAD: usize = 100;
+
+            let tracker = Arc::new(NonceTracker::<12>::new(500));
+            let barrier = Arc::new(Barrier::new(NUM_THREADS));
+
+            // Create a shared pool of nonces that threads will contend over
+            let shared_nonces: Arc<Vec<Nonce96>> = Arc::new(
+                (0..10).map(|_| Nonce96::random()).collect()
+            );
+
+            let handles: Vec<_> = (0..NUM_THREADS)
+                .map(|thread_id| {
+                    let tracker = Arc::clone(&tracker);
+                    let barrier = Arc::clone(&barrier);
+                    let nonces = Arc::clone(&shared_nonces);
+
+                    thread::spawn(move || {
+                        barrier.wait();
+
+                        let mut successes = 0usize;
+                        let mut failures = 0usize;
+
+                        for i in 0..OPS_PER_THREAD {
+                            // Mix between shared nonces (contention) and unique nonces
+                            let result = if i % 3 == 0 {
+                                // Use a shared nonce (high contention)
+                                let idx = (thread_id + i) % nonces.len();
+                                let nonce = Nonce::new(*nonces[idx].as_bytes());
+                                tracker.check_and_touch(&nonce)
+                            } else {
+                                // Use a unique nonce (no contention)
+                                let unique_nonce = Nonce96::random();
+                                tracker.check_and_touch(&unique_nonce)
+                            };
+
+                            match result {
+                                Ok(()) => successes += 1,
+                                Err(Error::NonceReuse) => failures += 1,
+                                Err(e) => panic!("Unexpected error: {:?}", e),
+                            }
+                        }
+
+                        (successes, failures)
+                    })
+                })
+                .collect();
+
+            // All threads should complete without panic or deadlock
+            let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+
+            let total_successes: usize = results.iter().map(|(s, _)| s).sum();
+            let total_failures: usize = results.iter().map(|(_, f)| f).sum();
+            let total_ops = NUM_THREADS * OPS_PER_THREAD;
+
+            assert_eq!(total_successes + total_failures, total_ops,
+                "All operations should have a definitive result");
+            assert!(total_successes > 0, "Some operations should succeed");
+
+            // The tracker should be in a consistent state
+            assert!(tracker.len() <= tracker.capacity(),
+                "Tracker should not exceed capacity");
+        }
+
+        /// Test concurrent operations with LRU eviction occurring.
+        /// Verifies eviction counter is properly maintained under concurrent access.
+        #[test]
+        fn test_concurrent_with_eviction() {
+            const NUM_THREADS: usize = 10;
+            const NONCES_PER_THREAD: usize = 20;
+            const CAPACITY: usize = 50;
+
+            let tracker = Arc::new(NonceTracker::<12>::new(CAPACITY));
+            let barrier = Arc::new(Barrier::new(NUM_THREADS));
+
+            let handles: Vec<_> = (0..NUM_THREADS)
+                .map(|_| {
+                    let tracker = Arc::clone(&tracker);
+                    let barrier = Arc::clone(&barrier);
+
+                    thread::spawn(move || {
+                        barrier.wait();
+
+                        // Each thread inserts unique nonces
+                        for _ in 0..NONCES_PER_THREAD {
+                            let nonce = Nonce96::random();
+                            let _ = tracker.check_and_touch(&nonce);
+                        }
+                    })
+                })
+                .collect();
+
+            for h in handles {
+                h.join().unwrap();
+            }
+
+            // Total nonces inserted: NUM_THREADS * NONCES_PER_THREAD = 200
+            // Capacity is 50, so we should have evicted 150
+            let total_inserted = NUM_THREADS * NONCES_PER_THREAD;
+            let expected_evictions = total_inserted.saturating_sub(CAPACITY);
+
+            assert_eq!(tracker.len(), CAPACITY, "Tracker should be at capacity");
+            assert_eq!(tracker.eviction_count() as usize, expected_evictions,
+                "Eviction count should match expected evictions");
+        }
+
+        /// Test mixed check and check_and_touch operations concurrently.
+        #[test]
+        fn test_concurrent_mixed_check_operations() {
+            const NUM_THREADS: usize = 10;
+
+            let tracker = Arc::new(NonceTracker::<12>::new(1000));
+            let barrier = Arc::new(Barrier::new(NUM_THREADS));
+            let nonce = Nonce96::random();
+
+            let handles: Vec<_> = (0..NUM_THREADS)
+                .map(|i| {
+                    let tracker = Arc::clone(&tracker);
+                    let barrier = Arc::clone(&barrier);
+                    let nonce_clone = Nonce::new(*nonce.as_bytes());
+
+                    thread::spawn(move || {
+                        barrier.wait();
+                        // Alternate between check and check_and_touch
+                        if i % 2 == 0 {
+                            tracker.check(&nonce_clone)
+                        } else {
+                            tracker.check_and_touch(&nonce_clone)
+                        }
+                    })
+                })
+                .collect();
+
+            let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+
+            let successes = results.iter().filter(|r| r.is_ok()).count();
+            assert_eq!(successes, 1, "Exactly one operation should succeed regardless of type");
+        }
+
+        /// Test that clear operation doesn't cause issues with concurrent access.
+        #[test]
+        fn test_concurrent_clear_safety() {
+            const NUM_THREADS: usize = 5;
+            const OPS_PER_THREAD: usize = 50;
+
+            let tracker = Arc::new(NonceTracker::<12>::new(100));
+            let barrier = Arc::new(Barrier::new(NUM_THREADS + 1));
+
+            // Spawn threads that continuously add nonces
+            let handles: Vec<_> = (0..NUM_THREADS)
+                .map(|_| {
+                    let tracker = Arc::clone(&tracker);
+                    let barrier = Arc::clone(&barrier);
+
+                    thread::spawn(move || {
+                        barrier.wait();
+
+                        for _ in 0..OPS_PER_THREAD {
+                            let nonce = Nonce96::random();
+                            let _ = tracker.check_and_touch(&nonce);
+                        }
+                    })
+                })
+                .collect();
+
+            // Clear thread - periodically clears the tracker
+            let tracker_clear = Arc::clone(&tracker);
+            let barrier_clear = Arc::clone(&barrier);
+            let clear_handle = thread::spawn(move || {
+                barrier_clear.wait();
+
+                for _ in 0..5 {
+                    thread::yield_now(); // Let other threads do some work
+                    tracker_clear.clear();
+                }
+            });
+
+            // All threads should complete without panic
+            for h in handles {
+                h.join().expect("Worker thread should not panic");
+            }
+            clear_handle.join().expect("Clear thread should not panic");
+
+            // Tracker should be in a valid state
+            assert!(tracker.len() <= tracker.capacity());
+        }
+    }
 }

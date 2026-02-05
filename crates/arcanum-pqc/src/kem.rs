@@ -577,4 +577,151 @@ mod tests {
         assert_eq!(MlKem1024::EK_SIZE, 1568);
         assert_eq!(MlKem1024::CT_SIZE, 1568);
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // IMPLICIT REJECTION DEPTH TESTS (Phase 5.9)
+    // FIPS 203 §7.3: Decapsulation with invalid ciphertext must:
+    // 1. Return a shared secret (not an error)
+    // 2. Be deterministic (same bad CT → same SS)
+    // 3. Vary with different bad CTs (not a constant)
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    /// Implicit rejection must be deterministic: same bad ciphertext → same result.
+    #[test]
+    fn test_ml_kem_768_implicit_rejection_is_deterministic() {
+        let (dk, _ek) = MlKem768::generate_keypair();
+
+        // Create an invalid ciphertext (random bytes)
+        let bad_ct = MlKem768Ciphertext::from_bytes(&[0xAB; MlKem768Ciphertext::SIZE]).unwrap();
+
+        // Decapsulate twice with the same bad ciphertext
+        let ss1 = MlKem768::decapsulate(&dk, &bad_ct).unwrap();
+        let ss2 = MlKem768::decapsulate(&dk, &bad_ct).unwrap();
+
+        assert_eq!(
+            ss1, ss2,
+            "Implicit rejection must be deterministic: same bad CT should produce same SS"
+        );
+    }
+
+    /// Different invalid ciphertexts must produce different rejection secrets.
+    #[test]
+    fn test_ml_kem_768_implicit_rejection_varies_by_ciphertext() {
+        let (dk, _ek) = MlKem768::generate_keypair();
+
+        let bad_ct_a = MlKem768Ciphertext::from_bytes(&[0xAA; MlKem768Ciphertext::SIZE]).unwrap();
+        let bad_ct_b = MlKem768Ciphertext::from_bytes(&[0xBB; MlKem768Ciphertext::SIZE]).unwrap();
+
+        let ss_a = MlKem768::decapsulate(&dk, &bad_ct_a).unwrap();
+        let ss_b = MlKem768::decapsulate(&dk, &bad_ct_b).unwrap();
+
+        assert_ne!(
+            ss_a, ss_b,
+            "Different bad ciphertexts must produce different rejection secrets"
+        );
+    }
+
+    /// Rejection secret must not be all-zeros or another trivial constant.
+    #[test]
+    fn test_ml_kem_768_implicit_rejection_not_trivial() {
+        let (dk, _ek) = MlKem768::generate_keypair();
+
+        let bad_ct = MlKem768Ciphertext::from_bytes(&[0x00; MlKem768Ciphertext::SIZE]).unwrap();
+        let ss = MlKem768::decapsulate(&dk, &bad_ct).unwrap();
+
+        assert!(
+            !ss.as_bytes().iter().all(|&b| b == 0),
+            "Rejection secret must not be all-zeros"
+        );
+        assert!(
+            !ss.as_bytes().iter().all(|&b| b == 0xFF),
+            "Rejection secret must not be all-ones"
+        );
+    }
+
+    /// Test implicit rejection properties across all ML-KEM variants.
+    #[test]
+    fn test_ml_kem_512_implicit_rejection_depth() {
+        let (dk, _ek) = MlKem512::generate_keypair();
+
+        let bad_ct_a = vec![0xAA; MlKem512::CT_SIZE];
+        let bad_ct_b = vec![0xBB; MlKem512::CT_SIZE];
+
+        // Deterministic
+        let ss1 = MlKem512::decapsulate(&dk, &bad_ct_a).unwrap();
+        let ss2 = MlKem512::decapsulate(&dk, &bad_ct_a).unwrap();
+        assert_eq!(ss1, ss2, "ML-KEM-512 implicit rejection must be deterministic");
+
+        // Varies by ciphertext
+        let ss_a = MlKem512::decapsulate(&dk, &bad_ct_a).unwrap();
+        let ss_b = MlKem512::decapsulate(&dk, &bad_ct_b).unwrap();
+        assert_ne!(ss_a, ss_b, "ML-KEM-512 must produce different secrets for different bad CTs");
+
+        // Not trivial
+        let bad_ct_zero = vec![0x00; MlKem512::CT_SIZE];
+        let ss_zero = MlKem512::decapsulate(&dk, &bad_ct_zero).unwrap();
+        assert!(!ss_zero.iter().all(|&b| b == 0), "ML-KEM-512 rejection secret must not be all-zeros");
+    }
+
+    /// Test implicit rejection properties for ML-KEM-1024.
+    #[test]
+    fn test_ml_kem_1024_implicit_rejection_depth() {
+        let (dk, _ek) = MlKem1024::generate_keypair();
+
+        let bad_ct_a = vec![0xAA; MlKem1024::CT_SIZE];
+        let bad_ct_b = vec![0xBB; MlKem1024::CT_SIZE];
+
+        // Deterministic
+        let ss1 = MlKem1024::decapsulate(&dk, &bad_ct_a).unwrap();
+        let ss2 = MlKem1024::decapsulate(&dk, &bad_ct_a).unwrap();
+        assert_eq!(ss1, ss2, "ML-KEM-1024 implicit rejection must be deterministic");
+
+        // Varies by ciphertext
+        let ss_a = MlKem1024::decapsulate(&dk, &bad_ct_a).unwrap();
+        let ss_b = MlKem1024::decapsulate(&dk, &bad_ct_b).unwrap();
+        assert_ne!(ss_a, ss_b, "ML-KEM-1024 must produce different secrets for different bad CTs");
+
+        // Not trivial
+        let bad_ct_zero = vec![0x00; MlKem1024::CT_SIZE];
+        let ss_zero = MlKem1024::decapsulate(&dk, &bad_ct_zero).unwrap();
+        assert!(!ss_zero.iter().all(|&b| b == 0), "ML-KEM-1024 rejection secret must not be all-zeros");
+    }
+
+    /// Rejection secret must differ from the valid shared secret.
+    #[test]
+    fn test_ml_kem_768_rejection_differs_from_valid() {
+        let (dk, ek) = MlKem768::generate_keypair();
+        let (ct, ss_valid) = MlKem768::encapsulate(&ek);
+
+        // Create a corrupted ciphertext by flipping some bytes
+        let mut corrupted_bytes = ct.to_bytes();
+        for b in &mut corrupted_bytes[..32] {
+            *b ^= 0xFF;
+        }
+        let corrupted_ct = MlKem768Ciphertext::from_bytes(&corrupted_bytes).unwrap();
+
+        let ss_reject = MlKem768::decapsulate(&dk, &corrupted_ct).unwrap();
+
+        assert_ne!(
+            ss_valid, ss_reject,
+            "Rejection secret must differ from valid shared secret"
+        );
+    }
+
+    /// Test that implicit rejection is key-specific.
+    #[test]
+    fn test_ml_kem_768_rejection_is_key_specific() {
+        let (dk1, _ek1) = MlKem768::generate_keypair();
+        let (dk2, _ek2) = MlKem768::generate_keypair();
+
+        let bad_ct = MlKem768Ciphertext::from_bytes(&[0xAB; MlKem768Ciphertext::SIZE]).unwrap();
+
+        let ss1 = MlKem768::decapsulate(&dk1, &bad_ct).unwrap();
+        let ss2 = MlKem768::decapsulate(&dk2, &bad_ct).unwrap();
+
+        assert_ne!(
+            ss1, ss2,
+            "Different decapsulation keys must produce different rejection secrets for same bad CT"
+        );
+    }
 }

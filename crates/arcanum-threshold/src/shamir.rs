@@ -507,4 +507,215 @@ mod tests {
             }
         }
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // PHASE 5.1: THRESHOLD SECURITY VERIFICATION
+    // These tests verify the fundamental security property of Shamir's scheme:
+    // t-1 shares reveal NOTHING about the secret (information-theoretic security).
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    mod threshold_security {
+        use super::*;
+        use itertools::Itertools;
+
+        /// Verify that t-1 shares produce incorrect reconstruction.
+        /// This is the FUNDAMENTAL security property of Shamir's scheme.
+        #[test]
+        fn test_combine_with_insufficient_shares_produces_wrong_secret() {
+            let secret = b"top secret data that must stay hidden";
+            let threshold = 3;
+            let total = 5;
+
+            let shares = ShamirScheme::split(secret, threshold, total).unwrap();
+
+            // Try every possible subset of t-1 shares
+            for subset in shares.iter().cloned().combinations(threshold - 1) {
+                let result = ShamirScheme::combine(&subset).unwrap(); // Returns Ok, but wrong data
+                assert_ne!(
+                    result.as_slice(),
+                    secret.as_slice(),
+                    "t-1 shares MUST NOT reconstruct the original secret"
+                );
+            }
+        }
+
+        /// Verify the boundary: exactly t shares always succeeds.
+        #[test]
+        fn test_combine_with_exactly_threshold_shares_succeeds() {
+            let secret = b"threshold boundary test";
+            let threshold = 3;
+            let total = 5;
+
+            let shares = ShamirScheme::split(secret, threshold, total).unwrap();
+
+            // Every t-sized subset must reconstruct correctly
+            for subset in shares.iter().cloned().combinations(threshold) {
+                let result = ShamirScheme::combine(&subset).unwrap();
+                assert_eq!(
+                    result.as_slice(),
+                    secret.as_slice(),
+                    "Exactly t shares must reconstruct the secret"
+                );
+            }
+        }
+
+        /// Statistical test: t-1 share reconstructions should appear random.
+        /// With t-1 shares, the result should be uniformly random in GF(256)^n,
+        /// independent of the actual secret.
+        #[test]
+        fn test_insufficient_shares_produce_random_looking_output() {
+            let secret = vec![0xAA; 32]; // Known pattern
+            let threshold = 3;
+            let total = 5;
+
+            let shares = ShamirScheme::split(&secret, threshold, total).unwrap();
+            let partial: Vec<_> = shares[..threshold - 1].to_vec();
+            let wrong_result = ShamirScheme::combine(&partial).unwrap();
+
+            // Check byte distribution isn't suspiciously close to the secret
+            let matching_bytes = wrong_result
+                .iter()
+                .zip(secret.iter())
+                .filter(|(a, b)| a == b)
+                .count();
+
+            // With 32 random bytes, expected matching ≈ 32/256 ≈ 0.125
+            // Allow generous margin but catch if all/most bytes match
+            assert!(
+                matching_bytes < secret.len() / 2,
+                "t-1 reconstruction matched {}/{} bytes — suspiciously close to secret",
+                matching_bytes,
+                secret.len()
+            );
+        }
+
+        /// Boundary test across multiple threshold/total configurations.
+        /// Verifies the exact boundary between t-1 (reveals nothing) and t (reveals all).
+        #[test]
+        fn test_threshold_boundary_multiple_configurations() {
+            for (threshold, total) in [(2, 3), (2, 5), (3, 5), (5, 10), (10, 20)] {
+                let secret = b"boundary test secret";
+                let shares = ShamirScheme::split(secret, threshold, total).unwrap();
+
+                // t shares: must succeed
+                let result = ShamirScheme::combine(&shares[..threshold]).unwrap();
+                assert_eq!(
+                    result.as_slice(),
+                    secret.as_slice(),
+                    "t={},n={}: t shares failed",
+                    threshold,
+                    total
+                );
+
+                // t-1 shares: must produce wrong result
+                let wrong = ShamirScheme::combine(&shares[..threshold - 1]).unwrap();
+                assert_ne!(
+                    wrong.as_slice(),
+                    secret.as_slice(),
+                    "t={},n={}: t-1 shares matched (SECURITY VIOLATION)",
+                    threshold,
+                    total
+                );
+            }
+        }
+
+        /// Verify that t-1 results are different for different secrets with same shares indices.
+        /// This ensures the wrong reconstruction isn't leaking a fixed pattern.
+        #[test]
+        fn test_insufficient_shares_vary_with_secret() {
+            let threshold = 3;
+            let total = 5;
+
+            let secret_a = vec![0x00; 16];
+            let secret_b = vec![0xFF; 16];
+
+            let shares_a = ShamirScheme::split(&secret_a, threshold, total).unwrap();
+            let shares_b = ShamirScheme::split(&secret_b, threshold, total).unwrap();
+
+            let partial_a: Vec<_> = shares_a[..threshold - 1].to_vec();
+            let partial_b: Vec<_> = shares_b[..threshold - 1].to_vec();
+
+            let wrong_a = ShamirScheme::combine(&partial_a).unwrap();
+            let wrong_b = ShamirScheme::combine(&partial_b).unwrap();
+
+            // Different secrets should produce different wrong results
+            // (with overwhelming probability)
+            assert_ne!(
+                wrong_a, wrong_b,
+                "Different secrets produced identical t-1 reconstructions"
+            );
+        }
+
+        /// Edge case: verify 2-of-n threshold security.
+        /// With 1 share, reconstruction should be completely determined by that share alone,
+        /// not revealing the secret.
+        #[test]
+        fn test_single_share_reveals_nothing_in_2_of_n() {
+            let secret = b"2-of-n security test";
+            let threshold = 2;
+            let total = 5;
+
+            let shares = ShamirScheme::split(secret, threshold, total).unwrap();
+
+            // Each single share should produce a different wrong result
+            let results: Vec<Vec<u8>> = shares
+                .iter()
+                .map(|s| ShamirScheme::combine(&[s.clone()]).unwrap())
+                .collect();
+
+            for result in &results {
+                assert_ne!(
+                    result.as_slice(),
+                    secret.as_slice(),
+                    "Single share must not reveal secret in 2-of-n"
+                );
+            }
+
+            // All single-share results should be different from each other
+            // (each share produces a unique wrong reconstruction)
+            for i in 0..results.len() {
+                for j in (i + 1)..results.len() {
+                    assert_ne!(
+                        results[i], results[j],
+                        "Shares {} and {} produced identical single-share reconstructions",
+                        i + 1,
+                        j + 1
+                    );
+                }
+            }
+        }
+
+        /// Verify that the t-1 security property holds for large secrets.
+        #[test]
+        fn test_threshold_security_large_secret() {
+            let secret: Vec<u8> = (0..256).map(|i| i as u8).collect(); // 256 byte secret
+            let threshold = 5;
+            let total = 10;
+
+            let shares = ShamirScheme::split(&secret, threshold, total).unwrap();
+
+            // t-1 shares must not recover the secret
+            let partial: Vec<_> = shares[..threshold - 1].to_vec();
+            let wrong = ShamirScheme::combine(&partial).unwrap();
+
+            assert_ne!(
+                wrong.as_slice(),
+                secret.as_slice(),
+                "t-1 shares reconstructed large secret (SECURITY VIOLATION)"
+            );
+
+            // Check that at least half the bytes differ
+            let matching = wrong
+                .iter()
+                .zip(secret.iter())
+                .filter(|(a, b)| a == b)
+                .count();
+            assert!(
+                matching < secret.len() / 2,
+                "t-1 reconstruction suspiciously similar to secret: {} of {} bytes match",
+                matching,
+                secret.len()
+            );
+        }
+    }
 }
