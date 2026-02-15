@@ -1,0 +1,87 @@
+[package]
+name = "arcanum-wasm"
+description = "WebAssembly bindings for Arcanum cryptographic library"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+keywords = ["cryptography", "wasm", "webassembly", "encryption"]
+categories = ["cryptography", "wasm"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false  # Disable until wasm-opt supports bulk-memory by default
+
+[features]
+default = ["backend-rustcrypto"]
+
+# Backend selection - choose implementation strategy
+# backend-native: Arcanum's native primitives (NOT AUDITED, smaller bundles)
+# backend-rustcrypto: Wrappers around audited RustCrypto (RECOMMENDED)
+backend-native = [
+    "arcanum-primitives",
+    "arcanum-primitives/alloc",
+    "arcanum-primitives/sha2",
+    "arcanum-primitives/blake3",
+    "arcanum-primitives/chacha20poly1305",
+    "dep:sha2",     # Needed for HKDF
+    "dep:sha3",     # Native backend doesn't have SHA-3
+    "dep:aes-gcm",  # Native backend doesn't have AES-GCM
+]
+
+# SIMD-accelerated native backend for WASM
+# Build with: RUSTFLAGS="-C target-feature=+simd128" wasm-pack build --features backend-native-simd
+backend-native-simd = [
+    "backend-native",                      # Includes all backend-native deps
+    "arcanum-primitives/wasm-simd",        # Add WASM SIMD acceleration
+]
+backend-rustcrypto = [
+    "dep:sha2",
+    "dep:sha3",
+    "dep:blake3",
+    "dep:aes-gcm",
+    "dep:chacha20poly1305",
+]
+
+[dependencies]
+# WASM bindings
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+
+# Error handling
+thiserror = { workspace = true }
+
+# Utilities
+hex = { workspace = true }
+zeroize = { workspace = true }
+
+# Entropy (browser crypto.getRandomValues)
+getrandom = { version = "0.2", features = ["js"] }
+rand = { workspace = true }
+rand_core = { workspace = true }
+
+# Native backend (optional)
+arcanum-primitives = { path = "../arcanum-primitives", optional = true, default-features = false }
+
+# RustCrypto backend (optional, default)
+sha2 = { workspace = true, optional = true }
+sha3 = { workspace = true, optional = true }
+blake3 = { workspace = true, optional = true }
+aes-gcm = { workspace = true, optional = true }
+chacha20poly1305 = { workspace = true, optional = true }
+
+# Key derivation (always included)
+argon2 = { workspace = true }
+hkdf = { workspace = true }
+
+# Phase 2: Asymmetric
+x25519-dalek = { workspace = true }
+ed25519-dalek = { workspace = true }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+hex = { workspace = true }

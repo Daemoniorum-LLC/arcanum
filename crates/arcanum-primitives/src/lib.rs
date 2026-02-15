@@ -85,12 +85,12 @@ pub mod blake3;
 pub mod blake3_simd;
 
 // Turbo BLAKE3 with novel optimizations
-#[cfg(all(feature = "blake3", feature = "simd"))]
+#[cfg(all(feature = "blake3", feature = "simd", target_arch = "x86_64"))]
 #[allow(unsafe_code)]
 pub mod blake3_turbo;
 
 // Hyper BLAKE3 with multi-threading
-#[cfg(all(feature = "blake3", feature = "simd"))]
+#[cfg(all(feature = "blake3", feature = "simd", target_arch = "x86_64"))]
 #[allow(unsafe_code)]
 pub mod blake3_hyper;
 
@@ -123,6 +123,22 @@ pub mod chacha20;
 #[allow(unsafe_code)]
 pub mod chacha20_simd;
 
+// WASM SIMD 128-bit acceleration for ChaCha20
+#[cfg(all(feature = "chacha20", feature = "wasm-simd", target_arch = "wasm32",))]
+#[allow(unsafe_code)]
+pub mod chacha20_wasm_simd;
+
+// WASM SIMD 128-bit acceleration for BLAKE3
+#[cfg(all(feature = "blake3", feature = "wasm-simd", target_arch = "wasm32",))]
+#[allow(unsafe_code)]
+pub mod blake3_wasm_simd;
+
+// WASM SIMD 128-bit acceleration for SHA-256
+// NOTE: Temporarily unconditional for debugging
+#[cfg(all(feature = "sha2", feature = "wasm-simd", target_arch = "wasm32",))]
+#[allow(unsafe_code)]
+pub mod sha256_wasm_simd;
+
 #[cfg(feature = "poly1305")]
 pub mod poly1305;
 
@@ -141,6 +157,10 @@ pub mod fused;
 // Batch processing for parallel SIMD operations
 #[cfg(feature = "sha2")]
 pub mod batch;
+
+// Cross-platform test vectors for XP-1/XP-2 validation
+#[cfg(test)]
+pub mod xp_test_vectors;
 
 // Re-exports
 pub use backend::{Backend, NativeBackend};

@@ -23,6 +23,9 @@
 //! let derived = Blake3::derive_key("my-context", b"input material");
 //! ```
 
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
+
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -121,18 +124,30 @@ fn compress(
     block_len: u32,
     flags: u8,
 ) -> [u32; 16] {
-    // Use SIMD-accelerated version when available
-    #[cfg(all(feature = "simd", feature = "std"))]
+    // Use SIMD-accelerated version when available (x86_64)
+    #[cfg(all(feature = "simd", feature = "std", not(target_arch = "wasm32")))]
     {
         return crate::blake3_simd::compress_auto(cv, block, counter, block_len, flags);
     }
 
-    #[cfg(not(all(feature = "simd", feature = "std")))]
+    // Use WASM SIMD when targeting wasm32 with simd128
+    #[cfg(all(feature = "wasm-simd", target_arch = "wasm32",))]
+    {
+        return crate::blake3_wasm_simd::compress(cv, block, counter, block_len, flags);
+    }
+
+    #[cfg(not(any(
+        all(feature = "simd", feature = "std", not(target_arch = "wasm32")),
+        all(feature = "wasm-simd", target_arch = "wasm32")
+    )))]
     compress_portable(cv, block, counter, block_len, flags)
 }
 
 /// Portable BLAKE3 compression function
-#[cfg(not(all(feature = "simd", feature = "std")))]
+#[cfg(not(any(
+    all(feature = "simd", feature = "std", not(target_arch = "wasm32")),
+    all(feature = "wasm-simd", target_arch = "wasm32")
+)))]
 fn compress_portable(
     cv: &[u32; 8],
     block: &[u8; BLOCK_LEN],

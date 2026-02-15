@@ -175,13 +175,25 @@ impl Sha256 {
     /// Compress a single 64-byte block.
     #[inline(always)]
     fn compress_block(&mut self, block: &[u8; 64]) {
-        #[cfg(all(feature = "simd", feature = "std"))]
+        // Use x86_64 SIMD when available
+        #[cfg(all(feature = "simd", feature = "std", not(target_arch = "wasm32")))]
         {
             crate::sha2_simd::compress_block_auto(&mut self.state, block);
             return;
         }
 
-        #[cfg(not(all(feature = "simd", feature = "std")))]
+        // Use WASM SIMD when targeting wasm32 with wasm-simd feature
+        // NOTE: target_feature cfg removed - it's always set via .cargo/config.toml
+        #[cfg(all(feature = "wasm-simd", target_arch = "wasm32",))]
+        {
+            crate::sha256_wasm_simd::compress_block(&mut self.state, block);
+            return;
+        }
+
+        #[cfg(not(any(
+            all(feature = "simd", feature = "std", not(target_arch = "wasm32")),
+            all(feature = "wasm-simd", target_arch = "wasm32")
+        )))]
         self.compress_block_portable(block);
     }
 

@@ -1,0 +1,126 @@
+{
+  "rustcrypto": {
+    "sha256_64B": {
+      "name": "SHA-256 64B",
+      "opsPerSec": 1459605.1417521765,
+      "bytesPerSec": 93414729.0721393
+    },
+    "sha256_1024B": {
+      "name": "SHA-256 1024B",
+      "opsPerSec": 332879.7882884547,
+      "bytesPerSec": 340868903.2073776
+    },
+    "sha256_16384B": {
+      "name": "SHA-256 16384B",
+      "opsPerSec": 27453.38586775815,
+      "bytesPerSec": 449796274.0573495
+    },
+    "blake3_64B": {
+      "name": "BLAKE3 64B",
+      "opsPerSec": 3059475.088276424,
+      "bytesPerSec": 195806405.64969113
+    },
+    "blake3_1024B": {
+      "name": "BLAKE3 1024B",
+      "opsPerSec": 749092.0898151705,
+      "bytesPerSec": 767070299.9707346
+    },
+    "blake3_16384B": {
+      "name": "BLAKE3 16384B",
+      "opsPerSec": 55605.61765577298,
+      "bytesPerSec": 911042439.6721845
+    },
+    "chacha20_encrypt_64B": {
+      "name": "ChaCha20 encrypt 64B",
+      "opsPerSec": 764363.0216153321,
+      "bytesPerSec": 48919233.383381255
+    },
+    "chacha20_decrypt_64B": {
+      "name": "ChaCha20 decrypt 64B",
+      "opsPerSec": 999642.4825427115,
+      "bytesPerSec": 63977118.88273354
+    },
+    "chacha20_encrypt_1024B": {
+      "name": "ChaCha20 encrypt 1024B",
+      "opsPerSec": 149691.12819886926,
+      "bytesPerSec": 153283715.27564213
+    },
+    "chacha20_decrypt_1024B": {
+      "name": "ChaCha20 decrypt 1024B",
+      "opsPerSec": 151542.69218656665,
+      "bytesPerSec": 155179716.79904425
+    },
+    "chacha20_encrypt_16384B": {
+      "name": "ChaCha20 encrypt 16384B",
+      "opsPerSec": 10663.801056127495,
+      "bytesPerSec": 174715716.50359288
+    },
+    "chacha20_decrypt_16384B": {
+      "name": "ChaCha20 decrypt 16384B",
+      "opsPerSec": 11188.223945129648,
+      "bytesPerSec": 183307861.11700416
+    }
+  },
+  "native": {
+    "sha256_64B": {
+      "name": "SHA-256 64B",
+      "opsPerSec": 1346545.6552843123,
+      "bytesPerSec": 86178921.93819599
+    },
+    "sha256_1024B": {
+      "name": "SHA-256 1024B",
+      "opsPerSec": 249674.5878405311,
+      "bytesPerSec": 255666777.94870386
+    },
+    "sha256_16384B": {
+      "name": "SHA-256 16384B",
+      "opsPerSec": 17776.383309043576,
+      "bytesPerSec": 291248264.13536996
+    },
+    "blake3_64B": {
+      "name": "BLAKE3 64B",
+      "opsPerSec": 2905984.6690590214,
+      "bytesPerSec": 185983018.81977737
+    },
+    "blake3_1024B": {
+      "name": "BLAKE3 1024B",
+      "opsPerSec": 632419.5307447084,
+      "bytesPerSec": 647597599.4825814
+    },
+    "blake3_16384B": {
+      "name": "BLAKE3 16384B",
+      "opsPerSec": 43907.70897970492,
+      "bytesPerSec": 719383903.9234854
+    },
+    "chacha20_encrypt_64B": {
+      "name": "ChaCha20 encrypt 64B",
+      "opsPerSec": 835306.3293873408,
+      "bytesPerSec": 53459605.08078981
+    },
+    "chacha20_decrypt_64B": {
+      "name": "ChaCha20 decrypt 64B",
+      "opsPerSec": 996445.8007108395,
+      "bytesPerSec": 63772531.245493725
+    },
+    "chacha20_encrypt_1024B": {
+      "name": "ChaCha20 encrypt 1024B",
+      "opsPerSec": 129817.26705171017,
+      "bytesPerSec": 132932881.46095121
+    },
+    "chacha20_decrypt_1024B": {
+      "name": "ChaCha20 decrypt 1024B",
+      "opsPerSec": 124163.68164432023,
+      "bytesPerSec": 127143610.00378391
+    },
+    "chacha20_encrypt_16384B": {
+      "name": "ChaCha20 encrypt 16384B",
+      "opsPerSec": 9336.968582428572,
+      "bytesPerSec": 152976893.25450972
+    },
+    "chacha20_decrypt_16384B": {
+      "name": "ChaCha20 decrypt 16384B",
+      "opsPerSec": 9318.116268251442,
+      "bytesPerSec": 152668016.93903163
+    }
+  }
+}

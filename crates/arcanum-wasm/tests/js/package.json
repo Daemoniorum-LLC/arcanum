@@ -1,0 +1,11 @@
+{
+  "name": "arcanum-wasm-integration-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test.mjs",
+    "test:crypto": "node --test test-crypto-interop.mjs",
+    "bench": "node bench.mjs"
+  },
+  "devDependencies": {}
+}

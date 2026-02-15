@@ -19,6 +19,9 @@ members = [
     "crates/arcanum-agile",
     "crates/arcanum-holocrypt",
 
+    # WASM bindings
+    "crates/arcanum-wasm",
+
     # TODO(BH-001): Implement arcanum-keystore (HSM/TPM/YubiKey support)
     # "crates/arcanum-keystore",
     # TODO(BH-002): Implement arcanum-protocols (Noise, Signal, OPAQUE)
@@ -161,7 +164,7 @@ pqcrypto-classicmceliece = "0.2"
 pqcrypto-hqc = "0.1"
 pqcrypto-traits = "0.3"
 oqs = "0.9"
-ml-kem = "0.1"
+ml-kem = "0.2"
 ml-dsa = "0.1.0-rc.3"
 slh-dsa = "0.2.0-rc.2"
 fips203 = "0.3"
