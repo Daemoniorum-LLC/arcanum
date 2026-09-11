@@ -4,7 +4,13 @@
 //! They are designed to be algorithm-agnostic, allowing code to work with any
 //! implementation that satisfies the trait bounds.
 
+#[cfg(all(not(feature = "std"), feature = "async"))]
+use alloc::boxed::Box;
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec, vec::Vec};
+
 use crate::error::Result;
+#[cfg(feature = "async")]
 use async_trait::async_trait;
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -25,6 +31,7 @@ pub trait SymmetricEncrypt {
     /// Encrypt plaintext with the given key and nonce.
     ///
     /// Returns the ciphertext with authentication tag appended.
+    #[must_use = "encryption can fail; check the Result"]
     fn encrypt(
         key: &[u8],
         nonce: &[u8],
@@ -35,6 +42,7 @@ pub trait SymmetricEncrypt {
     /// Decrypt ciphertext with the given key and nonce.
     ///
     /// Returns the plaintext if authentication succeeds.
+    #[must_use = "decryption can fail; check the Result"]
     fn decrypt(
         key: &[u8],
         nonce: &[u8],
@@ -69,9 +77,11 @@ pub trait AsymmetricEncrypt {
     const ALGORITHM: &'static str;
 
     /// Encrypt data with a public key.
+    #[must_use = "encryption can fail; check the Result"]
     fn encrypt(public_key: &Self::PublicKey, plaintext: &[u8]) -> Result<Vec<u8>>;
 
     /// Decrypt data with a private key.
+    #[must_use = "decryption can fail; check the Result"]
     fn decrypt(private_key: &Self::PrivateKey, ciphertext: &[u8]) -> Result<Vec<u8>>;
 }
 
@@ -91,9 +101,11 @@ pub trait KeyExchange {
     const ALGORITHM: &'static str;
 
     /// Generate a new key pair.
+    #[must_use = "key generation can fail; check the Result"]
     fn generate_keypair() -> Result<(Self::PrivateKey, Self::PublicKey)>;
 
     /// Compute shared secret from private key and peer's public key.
+    #[must_use = "shared secret computation can fail; check the Result"]
     fn compute_shared_secret(
         private_key: &Self::PrivateKey,
         peer_public_key: &Self::PublicKey,
@@ -114,12 +126,15 @@ pub trait KeyEncapsulation {
     const ALGORITHM: &'static str;
 
     /// Generate a new key pair.
+    #[must_use = "key generation can fail; check the Result"]
     fn generate_keypair() -> Result<(Self::PrivateKey, Self::PublicKey)>;
 
     /// Encapsulate: generate shared secret and ciphertext.
+    #[must_use = "encapsulation can fail; check the Result"]
     fn encapsulate(public_key: &Self::PublicKey) -> Result<(Self::Ciphertext, Self::SharedSecret)>;
 
     /// Decapsulate: recover shared secret from ciphertext.
+    #[must_use = "decapsulation can fail; check the Result"]
     fn decapsulate(
         private_key: &Self::PrivateKey,
         ciphertext: &Self::Ciphertext,
@@ -142,12 +157,15 @@ pub trait Signer {
     const ALGORITHM: &'static str;
 
     /// Generate a new signing key pair.
+    #[must_use = "key generation can fail; check the Result"]
     fn generate_keypair() -> Result<(Self::PrivateKey, Self::PublicKey)>;
 
     /// Sign a message.
+    #[must_use = "signing can fail; check the Result"]
     fn sign(private_key: &Self::PrivateKey, message: &[u8]) -> Result<Self::Signature>;
 
     /// Verify a signature.
+    #[must_use = "verification result must be checked"]
     fn verify(
         public_key: &Self::PublicKey,
         message: &[u8],
@@ -158,12 +176,14 @@ pub trait Signer {
 /// Trait for batch signature verification.
 pub trait BatchVerifier: Signer {
     /// Verify multiple signatures in batch (more efficient than individual verification).
+    #[must_use = "verification result must be checked"]
     fn verify_batch(items: &[(&Self::PublicKey, &[u8], &Self::Signature)]) -> Result<bool>;
 }
 
 /// Trait for deterministic signatures (RFC 6979).
 pub trait DeterministicSigner: Signer {
     /// Sign with deterministic nonce generation.
+    #[must_use = "signing can fail; check the Result"]
     fn sign_deterministic(
         private_key: &Self::PrivateKey,
         message: &[u8],
@@ -226,9 +246,11 @@ pub trait Mac {
     const ALGORITHM: &'static str;
 
     /// Compute MAC of data.
+    #[must_use = "MAC computation can fail; check the Result"]
     fn compute(key: &[u8], data: &[u8]) -> Result<Vec<u8>>;
 
     /// Verify MAC.
+    #[must_use = "verification result must be checked"]
     fn verify(key: &[u8], data: &[u8], tag: &[u8]) -> Result<bool>;
 }
 
@@ -242,6 +264,7 @@ pub trait KeyDerivation {
     const ALGORITHM: &'static str;
 
     /// Derive key material from input.
+    #[must_use = "key derivation can fail; check the Result"]
     fn derive(
         input_key_material: &[u8],
         salt: Option<&[u8]>,
@@ -258,6 +281,7 @@ pub trait PasswordBasedKdf {
     const ALGORITHM: &'static str;
 
     /// Derive key from password.
+    #[must_use = "key derivation can fail; check the Result"]
     fn derive(
         password: &[u8],
         salt: &[u8],
@@ -266,9 +290,11 @@ pub trait PasswordBasedKdf {
     ) -> Result<Vec<u8>>;
 
     /// Hash password for storage.
+    #[must_use = "password hashing can fail; check the Result"]
     fn hash_password(password: &[u8], params: &Self::Params) -> Result<String>;
 
     /// Verify password against hash.
+    #[must_use = "verification result must be checked"]
     fn verify_password(password: &[u8], hash: &str) -> Result<bool>;
 }
 
@@ -290,6 +316,7 @@ pub trait ZkProof {
     type ProvingKey;
 
     /// Generate a proof.
+    #[must_use = "proof generation can fail; check the Result"]
     fn prove(
         proving_key: &Self::ProvingKey,
         public_input: &Self::PublicInput,
@@ -297,6 +324,7 @@ pub trait ZkProof {
     ) -> Result<Self::Proof>;
 
     /// Verify a proof.
+    #[must_use = "verification result must be checked"]
     fn verify(
         verification_key: &Self::VerificationKey,
         public_input: &Self::PublicInput,
@@ -314,9 +342,11 @@ pub trait SecretSharing {
     type Share;
 
     /// Split a secret into shares.
+    #[must_use = "secret splitting can fail; check the Result"]
     fn split(secret: &[u8], threshold: usize, total_shares: usize) -> Result<Vec<Self::Share>>;
 
     /// Reconstruct secret from shares.
+    #[must_use = "secret reconstruction can fail; check the Result"]
     fn reconstruct(shares: &[Self::Share]) -> Result<Vec<u8>>;
 }
 
@@ -325,6 +355,7 @@ pub trait SecretSharing {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /// Trait for threshold signature schemes.
+#[cfg(feature = "async")]
 #[async_trait]
 pub trait ThresholdSigner {
     /// Key share type.
@@ -337,21 +368,25 @@ pub trait ThresholdSigner {
     type PublicKey;
 
     /// Generate key shares via distributed key generation.
+    #[must_use = "key generation can fail; check the Result"]
     async fn distributed_keygen(
         threshold: usize,
         total_participants: usize,
     ) -> Result<Vec<Self::KeyShare>>;
 
     /// Generate a signature share.
+    #[must_use = "signature share generation can fail; check the Result"]
     fn sign_share(key_share: &Self::KeyShare, message: &[u8]) -> Result<Self::SignatureShare>;
 
     /// Combine signature shares into final signature.
+    #[must_use = "signature combination can fail; check the Result"]
     fn combine_signatures(
         shares: &[Self::SignatureShare],
         threshold: usize,
     ) -> Result<Self::Signature>;
 
     /// Verify the final signature.
+    #[must_use = "verification result must be checked"]
     fn verify(
         public_key: &Self::PublicKey,
         message: &[u8],
@@ -364,21 +399,27 @@ pub trait ThresholdSigner {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /// Trait for key storage backends.
+#[cfg(feature = "async")]
 #[async_trait]
 pub trait KeyStore: Send + Sync {
     /// Store a key.
+    #[must_use = "key store operation can fail; check the Result"]
     async fn store(&self, id: &str, key: &[u8], metadata: Option<&[u8]>) -> Result<()>;
 
     /// Retrieve a key.
+    #[must_use = "key store operation can fail; check the Result"]
     async fn retrieve(&self, id: &str) -> Result<Option<Vec<u8>>>;
 
     /// Delete a key.
+    #[must_use = "key store operation can fail; check the Result"]
     async fn delete(&self, id: &str) -> Result<bool>;
 
     /// List all key IDs.
+    #[must_use = "key store operation can fail; check the Result"]
     async fn list(&self) -> Result<Vec<String>>;
 
     /// Check if a key exists.
+    #[must_use = "key store operation can fail; check the Result"]
     async fn exists(&self, id: &str) -> Result<bool>;
 }
 
@@ -425,9 +466,11 @@ pub trait HybridEncrypt {
     type PrivateKey;
 
     /// Encrypt with hybrid scheme.
+    #[must_use = "encryption can fail; check the Result"]
     fn encrypt(public_key: &Self::PublicKey, plaintext: &[u8]) -> Result<Vec<u8>>;
 
     /// Decrypt with hybrid scheme.
+    #[must_use = "decryption can fail; check the Result"]
     fn decrypt(private_key: &Self::PrivateKey, ciphertext: &[u8]) -> Result<Vec<u8>>;
 }
 
@@ -444,18 +487,21 @@ pub trait PostQuantumHybrid {
 
     /// Generate hybrid key pair.
     #[allow(clippy::type_complexity)]
+    #[must_use = "key generation can fail; check the Result"]
     fn generate_keypair() -> Result<(
         (Self::ClassicalPrivateKey, Self::PqPrivateKey),
         (Self::ClassicalPublicKey, Self::PqPublicKey),
     )>;
 
     /// Encapsulate with hybrid KEM.
+    #[must_use = "encapsulation can fail; check the Result"]
     fn encapsulate(
         classical_pk: &Self::ClassicalPublicKey,
         pq_pk: &Self::PqPublicKey,
     ) -> Result<(Vec<u8>, Vec<u8>)>;
 
     /// Decapsulate with hybrid KEM.
+    #[must_use = "decapsulation can fail; check the Result"]
     fn decapsulate(
         classical_sk: &Self::ClassicalPrivateKey,
         pq_sk: &Self::PqPrivateKey,

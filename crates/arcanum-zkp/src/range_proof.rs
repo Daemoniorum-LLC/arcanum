@@ -9,6 +9,9 @@
 //! - Logarithmic proof size O(log n)
 //! - Aggregatable: multiple proofs can be batched
 
+#[cfg(not(feature = "std"))]
+use alloc::{format, string::{String, ToString}, vec::Vec};
+
 use arcanum_core::error::{Error, Result};
 use bulletproofs::{BulletproofGens, PedersenGens, RangeProof as BpRangeProof};
 use merlin::Transcript;
@@ -32,6 +35,7 @@ impl RangeProof {
     /// Prove that a value is in the range [0, 2^n_bits).
     ///
     /// Returns the commitment and the proof.
+    #[must_use = "proof generation can fail; check the Result"]
     pub fn prove(value: u64, n_bits: usize) -> Result<Self> {
         if n_bits > Self::MAX_BITS {
             return Err(Error::InvalidParameter(format!(
@@ -68,6 +72,7 @@ impl RangeProof {
     }
 
     /// Prove with a specific blinding factor (as raw bytes).
+    #[must_use = "proof generation can fail; check the Result"]
     pub fn prove_with_blinding(
         value: u64,
         blinding_bytes: &[u8; 32],
@@ -100,6 +105,7 @@ impl RangeProof {
     }
 
     /// Verify the range proof.
+    #[must_use = "verification result must be checked"]
     pub fn verify(&self, n_bits: usize) -> Result<bool> {
         if n_bits > Self::MAX_BITS {
             return Err(Error::InvalidParameter(format!(
@@ -139,6 +145,7 @@ impl RangeProof {
     }
 
     /// Deserialize from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8], n_bits: usize) -> Result<Self> {
         if bytes.len() < 32 {
             return Err(Error::InvalidParameter("proof bytes too short".to_string()));
@@ -158,8 +165,8 @@ impl RangeProof {
     }
 }
 
-impl std::fmt::Debug for RangeProof {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for RangeProof {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "RangeProof({} bytes)", self.to_bytes().len())
     }
 }
@@ -174,6 +181,7 @@ impl RangeProofBatch {
     /// Prove multiple values are in range [0, 2^n_bits).
     ///
     /// The number of values must be a power of 2.
+    #[must_use = "proof generation can fail; check the Result"]
     pub fn prove(values: &[u64], n_bits: usize) -> Result<Self> {
         if values.is_empty() || !values.len().is_power_of_two() {
             return Err(Error::InvalidParameter(
@@ -216,6 +224,7 @@ impl RangeProofBatch {
     }
 
     /// Verify the batch range proof.
+    #[must_use = "verification result must be checked"]
     pub fn verify(&self, n_bits: usize) -> Result<bool> {
         if n_bits > RangeProof::MAX_BITS {
             return Err(Error::InvalidParameter(format!(
@@ -257,8 +266,8 @@ impl RangeProofBatch {
     }
 }
 
-impl std::fmt::Debug for RangeProofBatch {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for RangeProofBatch {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "RangeProofBatch({} values)", self.commitments.len())
     }
 }

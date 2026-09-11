@@ -9,6 +9,9 @@
 //! Note: XChaCha20-Poly1305 always uses the RustCrypto backend as our native
 //! implementation does not yet support extended nonces.
 
+#[cfg(not(feature = "std"))]
+use alloc::{vec, vec::Vec};
+
 use crate::traits::{Cipher, StreamCipher, validate_input_sizes};
 use arcanum_core::error::{Error, Result};
 use rand_core::{OsRng, RngCore};
@@ -894,6 +897,221 @@ mod tests {
             .open(&nonce, aad, &rustcrypto_ciphertext)
             .unwrap();
         assert_eq!(decrypted, plaintext);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // IN-PLACE ENCRYPT/DECRYPT ROUNDTRIPS
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    #[test]
+    fn test_chacha20_poly1305_in_place_roundtrip() {
+        let key = ChaCha20Poly1305Cipher::generate_key();
+        let nonce = ChaCha20Poly1305Cipher::generate_nonce();
+        let aad = b"authenticated header";
+        let plaintext = b"Hello, in-place ChaCha20-Poly1305!";
+
+        let mut buffer = plaintext.to_vec();
+        ChaCha20Poly1305Cipher::encrypt_in_place(&key, &nonce, aad, &mut buffer).unwrap();
+
+        // After encryption the buffer must differ from plaintext and include the tag
+        assert_ne!(&buffer[..plaintext.len()], plaintext);
+        assert_eq!(
+            buffer.len(),
+            plaintext.len() + ChaCha20Poly1305Cipher::TAG_SIZE
+        );
+
+        ChaCha20Poly1305Cipher::decrypt_in_place(&key, &nonce, aad, &mut buffer).unwrap();
+
+        assert_eq!(buffer, plaintext);
+    }
+
+    #[test]
+    fn test_xchacha20_poly1305_in_place_roundtrip() {
+        let key = XChaCha20Poly1305Cipher::generate_key();
+        let nonce = XChaCha20Poly1305Cipher::generate_nonce();
+        let aad = b"authenticated header";
+        let plaintext = b"Hello, in-place XChaCha20-Poly1305!";
+
+        let mut buffer = plaintext.to_vec();
+        XChaCha20Poly1305Cipher::encrypt_in_place(&key, &nonce, aad, &mut buffer).unwrap();
+
+        assert_ne!(&buffer[..plaintext.len()], plaintext);
+        assert_eq!(
+            buffer.len(),
+            plaintext.len() + XChaCha20Poly1305Cipher::TAG_SIZE
+        );
+
+        XChaCha20Poly1305Cipher::decrypt_in_place(&key, &nonce, aad, &mut buffer).unwrap();
+
+        assert_eq!(buffer, plaintext);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // INVALID KEY / NONCE LENGTH ERRORS
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    #[test]
+    fn test_chacha20_poly1305_invalid_key_length() {
+        let short_key = vec![0u8; 16]; // 16 bytes instead of 32
+        let nonce = ChaCha20Poly1305Cipher::generate_nonce();
+        let plaintext = b"payload";
+
+        let err = ChaCha20Poly1305Cipher::encrypt(&short_key, &nonce, plaintext, None)
+            .expect_err("should reject 16-byte key");
+        assert!(
+            matches!(err, Error::InvalidKeyLength { expected: 32, actual: 16 }),
+            "expected InvalidKeyLength(32, 16), got: {err:?}"
+        );
+    }
+
+    #[test]
+    fn test_chacha20_poly1305_invalid_nonce_length() {
+        let key = ChaCha20Poly1305Cipher::generate_key();
+        let short_nonce = vec![0u8; 8]; // 8 bytes instead of 12
+        let plaintext = b"payload";
+
+        let err = ChaCha20Poly1305Cipher::encrypt(&key, &short_nonce, plaintext, None)
+            .expect_err("should reject 8-byte nonce");
+        assert!(
+            matches!(err, Error::InvalidNonceLength { expected: 12, actual: 8 }),
+            "expected InvalidNonceLength(12, 8), got: {err:?}"
+        );
+    }
+
+    #[test]
+    fn test_xchacha20_poly1305_invalid_key_length() {
+        let short_key = vec![0u8; 16];
+        let nonce = XChaCha20Poly1305Cipher::generate_nonce();
+        let plaintext = b"payload";
+
+        let err = XChaCha20Poly1305Cipher::encrypt(&short_key, &nonce, plaintext, None)
+            .expect_err("should reject 16-byte key");
+        assert!(
+            matches!(err, Error::InvalidKeyLength { expected: 32, actual: 16 }),
+            "expected InvalidKeyLength(32, 16), got: {err:?}"
+        );
+    }
+
+    #[test]
+    fn test_xchacha20_poly1305_invalid_nonce_length() {
+        let key = XChaCha20Poly1305Cipher::generate_key();
+        let wrong_nonce = vec![0u8; 12]; // 12 bytes instead of 24
+        let plaintext = b"payload";
+
+        let err = XChaCha20Poly1305Cipher::encrypt(&key, &wrong_nonce, plaintext, None)
+            .expect_err("should reject 12-byte nonce for XChaCha20");
+        assert!(
+            matches!(err, Error::InvalidNonceLength { expected: 24, actual: 12 }),
+            "expected InvalidNonceLength(24, 12), got: {err:?}"
+        );
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // CIPHERTEXT TOO SHORT ERRORS
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    #[test]
+    fn test_chacha20_poly1305_decrypt_ciphertext_too_short() {
+        let key = ChaCha20Poly1305Cipher::generate_key();
+        let nonce = ChaCha20Poly1305Cipher::generate_nonce();
+
+        // Empty ciphertext
+        let err_empty = ChaCha20Poly1305Cipher::decrypt(&key, &nonce, &[], None)
+            .expect_err("should reject empty ciphertext");
+        assert!(
+            matches!(err_empty, Error::CiphertextTooShort { size: 0, minimum: 16 }),
+            "expected CiphertextTooShort(0, 16), got: {err_empty:?}"
+        );
+
+        // 8-byte ciphertext (below TAG_SIZE of 16)
+        let short_ct = vec![0u8; 8];
+        let err_short = ChaCha20Poly1305Cipher::decrypt(&key, &nonce, &short_ct, None)
+            .expect_err("should reject 8-byte ciphertext");
+        assert!(
+            matches!(err_short, Error::CiphertextTooShort { size: 8, minimum: 16 }),
+            "expected CiphertextTooShort(8, 16), got: {err_short:?}"
+        );
+    }
+
+    #[test]
+    fn test_xchacha20_poly1305_decrypt_ciphertext_too_short() {
+        let key = XChaCha20Poly1305Cipher::generate_key();
+        let nonce = XChaCha20Poly1305Cipher::generate_nonce();
+
+        // Empty ciphertext
+        let err_empty = XChaCha20Poly1305Cipher::decrypt(&key, &nonce, &[], None)
+            .expect_err("should reject empty ciphertext");
+        assert!(
+            matches!(err_empty, Error::CiphertextTooShort { size: 0, minimum: 16 }),
+            "expected CiphertextTooShort(0, 16), got: {err_empty:?}"
+        );
+
+        // 8-byte ciphertext
+        let short_ct = vec![0u8; 8];
+        let err_short = XChaCha20Poly1305Cipher::decrypt(&key, &nonce, &short_ct, None)
+            .expect_err("should reject 8-byte ciphertext");
+        assert!(
+            matches!(err_short, Error::CiphertextTooShort { size: 8, minimum: 16 }),
+            "expected CiphertextTooShort(8, 16), got: {err_short:?}"
+        );
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // CHACHA20 STREAM CIPHER ERROR PATHS
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    #[test]
+    fn test_chacha20_stream_invalid_key_length() {
+        let short_key = vec![0u8; 16]; // 16 bytes instead of 32
+        let nonce = vec![0u8; 12];
+
+        match ChaCha20Stream::new(&short_key, &nonce) {
+            Err(Error::InvalidKeyLength { expected: 32, actual: 16 }) => {} // expected
+            Err(other) => panic!("expected InvalidKeyLength(32, 16), got: {other:?}"),
+            Ok(_) => panic!("should reject 16-byte key, but got Ok"),
+        }
+    }
+
+    #[test]
+    fn test_chacha20_stream_invalid_nonce_length() {
+        let key = vec![0u8; 32];
+        let short_nonce = vec![0u8; 8]; // 8 bytes instead of 12
+
+        match ChaCha20Stream::new(&key, &short_nonce) {
+            Err(Error::InvalidNonceLength { expected: 12, actual: 8 }) => {} // expected
+            Err(other) => panic!("expected InvalidNonceLength(12, 8), got: {other:?}"),
+            Ok(_) => panic!("should reject 8-byte nonce, but got Ok"),
+        }
+    }
+
+    #[test]
+    fn test_chacha20_stream_position_tracking() {
+        let key = vec![0u8; 32];
+        let nonce = vec![0u8; 12];
+
+        let mut cipher = ChaCha20Stream::new(&key, &nonce).unwrap();
+
+        // Initially at position 0
+        assert_eq!(cipher.position(), 0, "initial position must be 0");
+
+        // Apply keystream to 50 bytes
+        let mut buf = vec![0u8; 50];
+        cipher.apply_keystream(&mut buf);
+        assert_eq!(cipher.position(), 50, "position must advance by buffer length");
+
+        // Apply keystream to another 30 bytes
+        let mut buf2 = vec![0u8; 30];
+        cipher.apply_keystream(&mut buf2);
+        assert_eq!(cipher.position(), 80, "position must be cumulative");
+
+        // Seek to a specific position and verify
+        cipher.seek(200).unwrap();
+        assert_eq!(cipher.position(), 200, "position must match seek target");
+
+        // Apply 10 more bytes and verify position advances from sought position
+        let mut buf3 = vec![0u8; 10];
+        cipher.apply_keystream(&mut buf3);
+        assert_eq!(cipher.position(), 210, "position must advance from seek point");
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════

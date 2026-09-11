@@ -252,7 +252,10 @@ impl ChaCha20Poly1305 {
 
         let ct_len = ciphertext_and_tag.len() - TAG_SIZE;
         let ciphertext = &ciphertext_and_tag[..ct_len];
-        let tag: &[u8; TAG_SIZE] = ciphertext_and_tag[ct_len..].try_into().unwrap();
+        // Length check above guarantees ct_len..end is exactly TAG_SIZE bytes
+        let tag: &[u8; TAG_SIZE] = ciphertext_and_tag[ct_len..]
+            .try_into()
+            .expect("length verified: ct_len..end is exactly TAG_SIZE");
 
         let mut plaintext = ciphertext.to_vec();
         self.decrypt(nonce, aad, &mut plaintext, tag)?;
@@ -308,9 +311,11 @@ impl XChaCha20Poly1305 {
     fn derive_subkey_and_nonce(&self, nonce: &[u8; XCHACHA_NONCE_SIZE]) -> ([u8; 32], [u8; 12]) {
         use crate::chacha20::hchacha20;
 
-        // Split the 24-byte nonce
-        let hchacha_nonce: [u8; 16] = nonce[..16].try_into().unwrap();
-        let chacha_nonce_suffix: &[u8; 8] = nonce[16..].try_into().unwrap();
+        // Split the 24-byte nonce into 16-byte HChaCha20 input + 8-byte suffix
+        let (hchacha_half, suffix_half) = nonce.split_at(16);
+        let mut hchacha_nonce = [0u8; 16];
+        hchacha_nonce.copy_from_slice(hchacha_half);
+        let chacha_nonce_suffix = suffix_half; // 8 bytes guaranteed by split_at(16) on [u8; 24]
 
         // Derive subkey using HChaCha20
         let subkey = hchacha20(&self.key, &hchacha_nonce);
@@ -774,5 +779,97 @@ mod tests {
 
         let output = hchacha20(&key, &nonce);
         assert_eq!(bytes_to_hex(&output), bytes_to_hex(&expected));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ROBUSTNESS TESTS (Release Roadmap §1.3)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // Test open() with every possible truncated length < TAG_SIZE
+    #[test]
+    fn test_open_malformed_short() {
+        let key = [0x42u8; 32];
+        let nonce = [0x24u8; 12];
+        let cipher = ChaCha20Poly1305::new(&key);
+
+        for len in 0..TAG_SIZE {
+            let malformed = vec![0u8; len];
+            let result = cipher.open(&nonce, &[], &malformed);
+            assert_eq!(
+                result,
+                Err(AeadError::AuthenticationFailed),
+                "Should fail for len={}",
+                len
+            );
+        }
+    }
+
+    // Test open() with random garbage of valid length
+    #[test]
+    fn test_open_garbage_data() {
+        let key = [0x42u8; 32];
+        let nonce = [0x24u8; 12];
+        let cipher = ChaCha20Poly1305::new(&key);
+
+        // Exactly TAG_SIZE bytes (empty ciphertext + wrong tag)
+        let garbage = vec![0xDE; TAG_SIZE];
+        let result = cipher.open(&nonce, &[], &garbage);
+        assert!(result.is_err());
+
+        // Larger garbage
+        let garbage = vec![0xDE; 100];
+        let result = cipher.open(&nonce, &[], &garbage);
+        assert!(result.is_err());
+    }
+
+    // Test decrypt with wrong tag is error, not panic
+    #[test]
+    fn test_decrypt_all_zero_tag() {
+        let key = [0x42u8; 32];
+        let nonce = [0x24u8; 12];
+        let cipher = ChaCha20Poly1305::new(&key);
+
+        let mut buffer = b"test data".to_vec();
+        let _real_tag = cipher.encrypt(&nonce, &[], &mut buffer);
+
+        // Try with all-zero tag
+        let zero_tag = [0u8; 16];
+        let result = cipher.decrypt(&nonce, &[], &mut buffer, &zero_tag);
+        assert_eq!(result, Err(AeadError::AuthenticationFailed));
+    }
+
+    // Test encrypt/decrypt with various message sizes near block boundaries
+    #[test]
+    fn test_roundtrip_boundary_sizes() {
+        let key = [0x42u8; 32];
+        let nonce = [0x24u8; 12];
+        let cipher = ChaCha20Poly1305::new(&key);
+
+        // Test sizes around 64-byte (ChaCha20 block) and 16-byte (Poly1305 block) boundaries
+        for len in [0, 1, 15, 16, 17, 31, 32, 33, 47, 48, 49, 63, 64, 65, 127, 128, 129, 255, 256, 257] {
+            let plaintext = vec![0xAB; len];
+            let mut ciphertext = plaintext.clone();
+            let tag = cipher.encrypt(&nonce, b"aad", &mut ciphertext);
+
+            cipher
+                .decrypt(&nonce, b"aad", &mut ciphertext, &tag)
+                .unwrap_or_else(|_| panic!("Decryption failed for len={}", len));
+
+            assert_eq!(ciphertext, plaintext, "Roundtrip mismatch at len={}", len);
+        }
+    }
+
+    // Test XChaCha20Poly1305 open() with malformed input
+    #[test]
+    fn test_xchacha_open_malformed() {
+        let key = [0x42u8; 32];
+        let nonce = [0x24u8; 24];
+        let cipher = XChaCha20Poly1305::new(&key);
+
+        for len in 0..TAG_SIZE {
+            let malformed = vec![0u8; len];
+            let result = cipher.open(&nonce, &[], &malformed);
+            assert!(result.is_err(), "Should fail for len={}", len);
+        }
     }
 }

@@ -1,5 +1,9 @@
 //! Error types for cryptographic agility operations.
 
+#[cfg(not(feature = "std"))]
+use alloc::string::String;
+
+#[cfg(feature = "registry")]
 use crate::registry::AlgorithmId;
 use thiserror::Error;
 
@@ -12,6 +16,7 @@ pub enum AgileError {
     UnknownAlgorithm(u16),
 
     /// Algorithm not supported for this operation.
+    #[cfg(feature = "registry")]
     #[error("Algorithm {id:?} is not supported for this operation")]
     UnsupportedAlgorithm { id: AlgorithmId },
 

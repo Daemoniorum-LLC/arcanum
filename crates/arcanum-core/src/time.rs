@@ -299,4 +299,130 @@ mod tests {
         let v2 = monotonic_next();
         assert!(v2 > v1);
     }
+
+    // ─── Timestamp precision tests ───────────────────────────────────────────
+
+    #[test]
+    fn test_unix_timestamp_millis_positive_and_greater_than_seconds() {
+        let secs = unix_timestamp();
+        let millis = unix_timestamp_millis();
+
+        assert!(millis > 0, "Millis timestamp must be positive");
+        assert!(millis >= secs * 1000,
+            "Millis ({}) must be >= seconds * 1000 ({})", millis, secs * 1000);
+    }
+
+    #[test]
+    fn test_unix_timestamp_nanos_positive_and_greater_than_millis() {
+        let millis = unix_timestamp_millis();
+        let nanos = unix_timestamp_nanos();
+
+        assert!(nanos > 0, "Nanos timestamp must be positive");
+        assert!(nanos >= (millis as u128) * 1_000_000,
+            "Nanos ({}) must be >= millis * 1_000_000 ({})", nanos, (millis as u128) * 1_000_000);
+    }
+
+    // ─── timed_compare tests ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_timed_compare_returns_true_result() {
+        let min_dur = Duration::from_millis(50);
+        let start = Instant::now();
+        let result = timed_compare(min_dur, || true);
+        let elapsed = start.elapsed();
+
+        assert!(result, "timed_compare must return the inner comparison result (true)");
+        assert!(elapsed >= min_dur, "timed_compare must take at least min_duration");
+    }
+
+    #[test]
+    fn test_timed_compare_returns_false_result() {
+        let min_dur = Duration::from_millis(50);
+        let start = Instant::now();
+        let result = timed_compare(min_dur, || false);
+        let elapsed = start.elapsed();
+
+        assert!(!result, "timed_compare must return the inner comparison result (false)");
+        assert!(elapsed >= min_dur, "timed_compare must take at least min_duration");
+    }
+
+    // ─── TimestampRange tests ────────────────────────────────────────────────
+
+    #[test]
+    fn test_timestamp_range_new_and_contains() {
+        let range = TimestampRange::new(100, 200);
+        assert_eq!(range.not_before, 100);
+        assert_eq!(range.not_after, 200);
+
+        assert!(range.contains(100), "Range must contain not_before boundary");
+        assert!(range.contains(150), "Range must contain middle value");
+        assert!(range.contains(200), "Range must contain not_after boundary");
+        assert!(!range.contains(99), "Range must not contain value before not_before");
+        assert!(!range.contains(201), "Range must not contain value after not_after");
+    }
+
+    #[test]
+    fn test_timestamp_range_from_now_contains_current_time() {
+        let range = TimestampRange::from_now(Duration::from_secs(3600));
+        let now = unix_timestamp();
+
+        assert!(range.contains(now), "from_now range must contain current time");
+        assert!(range.contains(now + 1800), "from_now range must contain time within duration");
+        assert!(!range.contains(now + 7200), "from_now range must not contain time past duration");
+    }
+
+    #[test]
+    fn test_timestamp_range_is_expired() {
+        // A range entirely in the past
+        let range = TimestampRange::new(1000, 2000);
+        assert!(range.is_expired(), "Range with not_after=2000 must be expired");
+    }
+
+    #[test]
+    fn test_timestamp_range_is_not_yet_valid() {
+        // A range entirely in the future
+        let far_future = unix_timestamp() + 100_000;
+        let range = TimestampRange::new(far_future, far_future + 3600);
+        assert!(range.is_not_yet_valid(), "Range with not_before in the far future must not yet be valid");
+        assert!(!range.is_expired(), "Future range must not be expired");
+    }
+
+    #[test]
+    fn test_timestamp_range_remaining_valid() {
+        let range = TimestampRange::from_now(Duration::from_secs(3600));
+        let remaining = range.remaining();
+        assert!(remaining.is_some(), "Active range must have remaining time");
+        let dur = remaining.unwrap();
+        // Remaining should be close to 3600 seconds (allow some slack for test execution)
+        assert!(dur.as_secs() <= 3600, "Remaining must not exceed the original duration");
+        assert!(dur.as_secs() >= 3598, "Remaining must be close to the original duration");
+    }
+
+    #[test]
+    fn test_timestamp_range_remaining_expired() {
+        let range = TimestampRange::new(1000, 2000);
+        assert!(range.remaining().is_none(), "Expired range must return None for remaining");
+    }
+
+    // ─── MonotonicClock: Default, last() ─────────────────────────────────────
+
+    #[test]
+    fn test_monotonic_clock_default_trait() {
+        let clock = MonotonicClock::default();
+        // A freshly created clock should have last_value of 0
+        assert_eq!(clock.last(), 0, "Default MonotonicClock must start at 0");
+    }
+
+    #[test]
+    fn test_monotonic_clock_last_returns_previous_value() {
+        let clock = MonotonicClock::new();
+        assert_eq!(clock.last(), 0, "New clock must start with last() == 0");
+
+        let v1 = clock.next();
+        assert_eq!(clock.last(), v1, "last() must return the value from the most recent next() call");
+
+        let v2 = clock.next();
+        assert_eq!(clock.last(), v2, "last() must update after each next() call");
+        assert!(v2 > v1, "Monotonic clock values must strictly increase");
+    }
 }

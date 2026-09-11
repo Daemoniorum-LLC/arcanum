@@ -5,6 +5,9 @@
 //! - Specific: Each error type has a clear meaning
 //! - Recoverable: Where possible, errors indicate how to recover
 
+#[cfg(not(feature = "std"))]
+use alloc::string::String;
+
 use thiserror::Error;
 
 /// The primary error type for Arcanum operations.
@@ -336,8 +339,9 @@ pub enum Error {
 }
 
 /// Result type alias for Arcanum operations.
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = core::result::Result<T, Error>;
 
+#[cfg(feature = "std")]
 impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
         Error::IoError(err.to_string())
@@ -388,6 +392,8 @@ impl Error {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(not(feature = "std"))]
+    use alloc::string::ToString;
 
     #[test]
     fn test_error_categories() {

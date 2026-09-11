@@ -8,11 +8,12 @@ repository.workspace = true
 authors.workspace = true
 rust-version.workspace = true
 keywords = ["cryptography", "zero-knowledge", "threshold", "post-quantum", "composable"]
-categories = ["cryptography"]
+categories = ["cryptography", "no-std"]
 
 [features]
 default = ["std", "full"]
 std = []
+alloc = []  # For Vec, String without full std
 
 # Full holocrypt with all features
 full = ["encryption", "commitment", "merkle", "zkp", "threshold", "pqc", "signatures"]

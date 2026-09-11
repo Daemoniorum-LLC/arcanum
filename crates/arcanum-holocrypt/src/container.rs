@@ -6,6 +6,9 @@
 //! 3. Merkle structure (BLAKE3 tree)
 //! 4. Signature (Ed25519)
 
+#[cfg(not(feature = "std"))]
+use alloc::{format, string::String, vec::Vec};
+
 use crate::errors::{HoloCryptError, HoloCryptResult};
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -101,7 +104,7 @@ pub struct HoloCrypt<T> {
     signature: Vec<u8>,
     /// Phantom for type safety
     #[serde(skip)]
-    _phantom: std::marker::PhantomData<T>,
+    _phantom: core::marker::PhantomData<T>,
 }
 
 impl<T> HoloCrypt<T>
@@ -177,7 +180,7 @@ where
             chunk_size: DEFAULT_CHUNK_SIZE,
             original_len,
             signature: signature.to_bytes().to_vec(),
-            _phantom: std::marker::PhantomData,
+            _phantom: core::marker::PhantomData,
         })
     }
 

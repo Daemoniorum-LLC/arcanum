@@ -2,6 +2,9 @@
 //!
 //! Re-encrypt data with newer algorithms.
 
+#[cfg(not(feature = "std"))]
+use alloc::{format, string::String, vec::Vec};
+
 use crate::containers::AgileCiphertext;
 use crate::errors::{AgileError, AgileResult};
 use crate::registry::AlgorithmId;

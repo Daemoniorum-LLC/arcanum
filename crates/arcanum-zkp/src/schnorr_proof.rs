@@ -9,6 +9,9 @@
 //! - **Equality Proof**: Prove two commitments hide the same value
 //! - **Representation Proof**: Prove knowledge of representation
 
+#[cfg(not(feature = "std"))]
+use alloc::{string::{String, ToString}, vec, vec::Vec};
+
 use crate::curve::{CompressedRistretto, RISTRETTO_BASEPOINT_POINT, RistrettoPoint, Scalar};
 use arcanum_core::error::{Error, Result};
 use rand::RngCore;
@@ -58,6 +61,7 @@ impl DiscreteLogProof {
     }
 
     /// Verify the proof.
+    #[must_use = "verification result must be checked"]
     pub fn verify(&self, public_key: &RistrettoPoint) -> Result<bool> {
         let g = RISTRETTO_BASEPOINT_POINT;
 
@@ -95,6 +99,7 @@ impl DiscreteLogProof {
     }
 
     /// Deserialize from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() != 64 {
             return Err(Error::InvalidParameter(
@@ -120,8 +125,8 @@ impl DiscreteLogProof {
     }
 }
 
-impl std::fmt::Debug for DiscreteLogProof {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for DiscreteLogProof {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "DiscreteLogProof(64 bytes)")
     }
 }
@@ -176,6 +181,7 @@ impl EqualityProof {
     }
 
     /// Verify the equality proof.
+    #[must_use = "verification result must be checked"]
     pub fn verify(
         &self,
         generator1: &RistrettoPoint,
@@ -234,8 +240,8 @@ impl EqualityProof {
     }
 }
 
-impl std::fmt::Debug for EqualityProof {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for EqualityProof {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "EqualityProof(96 bytes)")
     }
 }
@@ -259,8 +265,8 @@ impl SchnorrProof {
     }
 }
 
-impl std::fmt::Debug for SchnorrProof {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for SchnorrProof {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "SchnorrProof({} commitments)", self.commitments.len())
     }
 }
@@ -314,6 +320,7 @@ impl SchnorrProofBuilder {
     }
 
     /// Verify a proof.
+    #[must_use = "verification result must be checked"]
     pub fn verify(&self, proof: &SchnorrProof) -> Result<bool> {
         if proof.commitments.len() != self.generators.len() {
             return Err(Error::InvalidParameter(

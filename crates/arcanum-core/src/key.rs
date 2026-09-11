@@ -10,14 +10,26 @@
 // moving fields out of a type that implements Drop.
 #![allow(unsafe_code)]
 
+#[cfg(not(feature = "std"))]
+use alloc::string::String;
+#[cfg(all(not(feature = "std"), feature = "encoding"))]
+use alloc::string::ToString;
+#[cfg(all(not(feature = "std"), feature = "serde", feature = "encoding"))]
+use alloc::vec::Vec;
+
 use crate::error::{Error, Result};
+#[cfg(feature = "std")]
 use crate::random::OsRng;
+#[cfg(feature = "std")]
 use chrono::{DateTime, Utc};
+#[cfg(feature = "std")]
 use rand::RngCore;
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use std::fmt;
-use std::mem::ManuallyDrop;
+use core::fmt;
+use core::mem::ManuallyDrop;
 use subtle::{Choice, ConstantTimeEq};
+#[cfg(feature = "std")]
 use uuid::Uuid;
 use zeroize::ZeroizeOnDrop;
 
@@ -57,6 +69,7 @@ impl<const N: usize> SecretKey<N> {
     }
 
     /// Generate a random secret key.
+    #[cfg(feature = "std")]
     pub fn generate() -> Self {
         let mut bytes = [0u8; N];
         OsRng.fill_bytes(&mut bytes);
@@ -64,6 +77,7 @@ impl<const N: usize> SecretKey<N> {
     }
 
     /// Create from a slice, returning error if length doesn't match.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_slice(slice: &[u8]) -> Result<Self> {
         if slice.len() != N {
             return Err(Error::InvalidKeyLength {
@@ -141,6 +155,7 @@ impl<const N: usize> PublicKey<N> {
     }
 
     /// Create from a slice, returning error if length doesn't match.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_slice(slice: &[u8]) -> Result<Self> {
         if slice.len() != N {
             return Err(Error::InvalidKeyLength {
@@ -169,23 +184,35 @@ impl<const N: usize> PublicKey<N> {
     }
 
     /// Encode as hex string.
+    #[cfg(feature = "encoding")]
     pub fn to_hex(&self) -> String {
         hex::encode(self.bytes)
     }
 
     /// Decode from hex string.
+    #[cfg(feature = "encoding")]
+    #[must_use = "encoding can fail; check the Result"]
     pub fn from_hex(s: &str) -> Result<Self> {
         let bytes = hex::decode(s).map_err(|e| Error::ParseError(e.to_string()))?;
         Self::from_slice(&bytes)
     }
 }
 
+#[cfg(feature = "encoding")]
 impl<const N: usize> fmt::Debug for PublicKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "PublicKey<{}>({})", N, self.to_hex())
     }
 }
 
+#[cfg(not(feature = "encoding"))]
+impl<const N: usize> fmt::Debug for PublicKey<N> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "PublicKey<{}>([{} bytes])", N, N)
+    }
+}
+
+#[cfg(feature = "encoding")]
 impl<const N: usize> fmt::Display for PublicKey<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_hex())
@@ -198,9 +225,9 @@ impl<const N: usize> AsRef<[u8]> for PublicKey<N> {
     }
 }
 
-#[cfg(feature = "serde")]
+#[cfg(all(feature = "serde", feature = "encoding"))]
 impl<const N: usize> Serialize for PublicKey<N> {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -212,9 +239,9 @@ impl<const N: usize> Serialize for PublicKey<N> {
     }
 }
 
-#[cfg(feature = "serde")]
+#[cfg(all(feature = "serde", feature = "encoding"))]
 impl<'de, const N: usize> Deserialize<'de> for PublicKey<N> {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
@@ -265,7 +292,7 @@ impl<const SK: usize, const PK: usize> KeyPair<SK, PK> {
         // SAFETY: We're taking ownership of the inner value and not using `self` afterward.
         // The public key in ManuallyDrop will be leaked (not dropped), which is fine.
         let secret = unsafe { ManuallyDrop::take(&mut self.secret_key) };
-        std::mem::forget(self);
+        core::mem::forget(self);
         secret
     }
 
@@ -274,7 +301,7 @@ impl<const SK: usize, const PK: usize> KeyPair<SK, PK> {
         // SAFETY: We're taking ownership of both inner values.
         let secret = unsafe { ManuallyDrop::take(&mut self.secret_key) };
         let public = unsafe { ManuallyDrop::take(&mut self.public_key) };
-        std::mem::forget(self);
+        core::mem::forget(self);
         (secret, public)
     }
 }
@@ -304,9 +331,12 @@ impl<const SK: usize, const PK: usize> fmt::Debug for KeyPair<SK, PK> {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /// Unique identifier for a key.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg(feature = "std")]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct KeyId(Uuid);
 
+#[cfg(feature = "std")]
 impl KeyId {
     /// Generate a new random key ID.
     pub fn generate() -> Self {
@@ -324,12 +354,14 @@ impl KeyId {
     }
 
     /// Parse from string.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn parse(s: &str) -> Result<Self> {
         let uuid = Uuid::parse_str(s).map_err(|e| Error::ParseError(e.to_string()))?;
         Ok(Self(uuid))
     }
 }
 
+#[cfg(feature = "std")]
 impl fmt::Display for KeyId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
@@ -337,7 +369,8 @@ impl fmt::Display for KeyId {
 }
 
 /// Key usage purposes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum KeyUsage {
     /// Encryption and decryption.
     Encrypt,
@@ -354,7 +387,8 @@ pub enum KeyUsage {
 }
 
 /// Key algorithm identifiers.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[allow(missing_docs)] // Variants are self-documenting
 pub enum KeyAlgorithm {
     // Symmetric
@@ -450,7 +484,9 @@ impl fmt::Display for KeyAlgorithm {
 }
 
 /// Metadata associated with a key.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg(feature = "std")]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct KeyMetadata {
     /// Unique key identifier.
     pub id: KeyId,
@@ -474,6 +510,7 @@ pub struct KeyMetadata {
     pub attributes: std::collections::HashMap<String, String>,
 }
 
+#[cfg(feature = "std")]
 impl KeyMetadata {
     /// Create new metadata with minimal fields.
     pub fn new(algorithm: KeyAlgorithm, usages: Vec<KeyUsage>) -> Self {
@@ -536,6 +573,7 @@ impl KeyMetadata {
 mod tests {
     use super::*;
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_secret_key_generation() {
         let key1 = SecretKey::<32>::generate();
@@ -556,6 +594,7 @@ mod tests {
         assert!(SecretKey::<32>::from_slice(&short).is_err());
     }
 
+    #[cfg(feature = "encoding")]
     #[test]
     fn test_public_key_hex() {
         let bytes = [0xab; 32];
@@ -565,6 +604,7 @@ mod tests {
         assert_eq!(key, decoded);
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_key_metadata_validity() {
         let meta = KeyMetadata::new(KeyAlgorithm::Aes256, vec![KeyUsage::Encrypt]);
@@ -573,11 +613,256 @@ mod tests {
         assert!(!meta.can_use_for(KeyUsage::Sign));
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn test_key_id() {
         let id = KeyId::generate();
         let s = id.to_string();
         let parsed = KeyId::parse(&s).unwrap();
         assert_eq!(id, parsed);
+    }
+
+    // ─── KeyPair tests ───────────────────────────────────────────────────────
+
+    #[test]
+    fn test_keypair_create_and_access() {
+        let sk_bytes = [1u8; 32];
+        let pk_bytes = [2u8; 32];
+        let sk = SecretKey::<32>::new(sk_bytes);
+        let pk = PublicKey::<32>::new(pk_bytes);
+
+        let pair = KeyPair::new(sk, pk);
+
+        assert_eq!(pair.secret_key().as_bytes(), &[1u8; 32]);
+        assert_eq!(pair.public_key().as_bytes(), &[2u8; 32]);
+    }
+
+    #[test]
+    fn test_keypair_into_secret_key() {
+        let sk = SecretKey::<32>::new([0xAA; 32]);
+        let pk = PublicKey::<32>::new([0xBB; 32]);
+        let pair = KeyPair::new(sk, pk);
+
+        let extracted_sk = pair.into_secret_key();
+        assert_eq!(extracted_sk.as_bytes(), &[0xAA; 32]);
+    }
+
+    #[test]
+    fn test_keypair_into_parts() {
+        let sk = SecretKey::<32>::new([0xCC; 32]);
+        let pk = PublicKey::<32>::new([0xDD; 32]);
+        let pair = KeyPair::new(sk, pk);
+
+        let (extracted_sk, extracted_pk) = pair.into_parts();
+        assert_eq!(extracted_sk.as_bytes(), &[0xCC; 32]);
+        assert_eq!(extracted_pk.as_bytes(), &[0xDD; 32]);
+    }
+
+    #[test]
+    fn test_keypair_debug_redacts_secret() {
+        let sk = SecretKey::<32>::new([0x01; 32]);
+        let pk = PublicKey::<32>::new([0x02; 32]);
+        let pair = KeyPair::new(sk, pk);
+
+        let debug_output = format!("{:?}", pair);
+        assert!(debug_output.contains("REDACTED"), "KeyPair Debug must redact the secret key");
+        assert!(!debug_output.contains("0101"), "KeyPair Debug must not leak secret key bytes");
+    }
+
+    // ─── PublicKey tests ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_public_key_from_slice_correct_length() {
+        let bytes = [0xAB; 32];
+        let pk = PublicKey::<32>::from_slice(&bytes).unwrap();
+        assert_eq!(pk.as_bytes(), &[0xAB; 32]);
+        assert_eq!(pk.as_slice(), &[0xAB; 32]);
+    }
+
+    #[test]
+    fn test_public_key_from_slice_wrong_length() {
+        let short = [0u8; 16];
+        let result = PublicKey::<32>::from_slice(&short);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        match err {
+            Error::InvalidKeyLength { expected, actual } => {
+                assert_eq!(expected, 32);
+                assert_eq!(actual, 16);
+            }
+            other => panic!("Expected InvalidKeyLength, got: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_public_key_len() {
+        assert_eq!(PublicKey::<32>::len(), 32);
+        assert_eq!(PublicKey::<64>::len(), 64);
+        assert_eq!(PublicKey::<16>::len(), 16);
+    }
+
+    // ─── SecretKey tests ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_secret_key_as_slice() {
+        let key = SecretKey::<16>::new([0xFF; 16]);
+        let slice: &[u8] = key.as_slice();
+        assert_eq!(slice.len(), 16);
+        assert!(slice.iter().all(|&b| b == 0xFF));
+    }
+
+    #[test]
+    fn test_secret_key_len_and_bit_len() {
+        assert_eq!(SecretKey::<32>::len(), 32);
+        assert_eq!(SecretKey::<32>::bit_len(), 256);
+        assert_eq!(SecretKey::<16>::len(), 16);
+        assert_eq!(SecretKey::<16>::bit_len(), 128);
+    }
+
+    #[test]
+    fn test_secret_key_ct_eq_equal_keys() {
+        let key1 = SecretKey::<32>::new([0x42; 32]);
+        let key2 = SecretKey::<32>::new([0x42; 32]);
+        assert!(key1.ct_eq(&key2));
+    }
+
+    #[test]
+    fn test_secret_key_ct_eq_different_keys() {
+        let key1 = SecretKey::<32>::new([0x42; 32]);
+        let key2 = SecretKey::<32>::new([0x43; 32]);
+        assert!(!key1.ct_eq(&key2));
+    }
+
+    #[test]
+    fn test_secret_key_constant_time_eq_trait() {
+        let key1 = SecretKey::<32>::new([0x10; 32]);
+        let key2 = SecretKey::<32>::new([0x10; 32]);
+        let key3 = SecretKey::<32>::new([0x20; 32]);
+
+        let eq_result: bool = key1.ct_eq(&key2).into();
+        assert!(eq_result);
+
+        let neq_result: bool = key1.ct_eq(&key3).into();
+        assert!(!neq_result);
+    }
+
+    #[test]
+    fn test_secret_key_debug_redaction() {
+        let key = SecretKey::<32>::new([0xDE; 32]);
+        let debug_output = format!("{:?}", key);
+        assert_eq!(debug_output, "SecretKey<32>[REDACTED]");
+        assert!(!debug_output.contains("de"), "Debug output must not leak key bytes");
+    }
+
+    #[test]
+    fn test_secret_key_as_ref() {
+        let key = SecretKey::<16>::new([0x99; 16]);
+        let as_ref: &[u8] = key.as_ref();
+        assert_eq!(as_ref.len(), 16);
+        assert_eq!(as_ref, &[0x99; 16]);
+    }
+
+    // ─── KeyMetadata tests ───────────────────────────────────────────────────
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_key_metadata_with_expiration_past_is_invalid() {
+        use chrono::{Utc, Duration as ChronoDuration};
+        let past = Utc::now() - ChronoDuration::hours(1);
+        let meta = KeyMetadata::new(KeyAlgorithm::Aes256, vec![KeyUsage::Encrypt])
+            .with_expiration(past);
+
+        assert!(meta.expires_at.is_some());
+        assert!(!meta.is_valid(), "Key with past expiration must be invalid");
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_key_metadata_with_label() {
+        let meta = KeyMetadata::new(KeyAlgorithm::Ed25519, vec![KeyUsage::Sign])
+            .with_label("my-signing-key");
+
+        assert_eq!(meta.label.as_deref(), Some("my-signing-key"));
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_key_metadata_with_extractable() {
+        let meta_default = KeyMetadata::new(KeyAlgorithm::Aes256, vec![KeyUsage::Encrypt]);
+        assert!(!meta_default.extractable, "Default extractable should be false");
+
+        let meta_extractable = meta_default.with_extractable(true);
+        assert!(meta_extractable.extractable);
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_key_metadata_not_before_future_is_invalid() {
+        use chrono::{Utc, Duration as ChronoDuration};
+        let future = Utc::now() + ChronoDuration::hours(1);
+        let mut meta = KeyMetadata::new(KeyAlgorithm::Aes256, vec![KeyUsage::Encrypt]);
+        meta.not_before = Some(future);
+
+        assert!(!meta.is_valid(), "Key with not_before in the future must be invalid");
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_key_metadata_can_use_for_expired_key() {
+        use chrono::{Utc, Duration as ChronoDuration};
+        let past = Utc::now() - ChronoDuration::hours(1);
+        let meta = KeyMetadata::new(KeyAlgorithm::Aes256, vec![KeyUsage::Encrypt])
+            .with_expiration(past);
+
+        assert!(!meta.can_use_for(KeyUsage::Encrypt),
+            "Expired key must not be usable even for its allowed usage");
+        assert!(!meta.can_use_for(KeyUsage::Sign),
+            "Expired key must not be usable for any usage");
+    }
+
+    // ─── KeyAlgorithm Display tests ──────────────────────────────────────────
+
+    #[test]
+    fn test_key_algorithm_display_aes256() {
+        assert_eq!(format!("{}", KeyAlgorithm::Aes256), "AES-256");
+    }
+
+    #[test]
+    fn test_key_algorithm_display_ed25519() {
+        assert_eq!(format!("{}", KeyAlgorithm::Ed25519), "Ed25519");
+    }
+
+    #[test]
+    fn test_key_algorithm_display_ml_kem_768() {
+        assert_eq!(format!("{}", KeyAlgorithm::MlKem768), "ML-KEM-768");
+    }
+
+    #[test]
+    fn test_key_algorithm_display_custom() {
+        let custom = KeyAlgorithm::Custom("MyCustomAlgo".into());
+        assert_eq!(format!("{}", custom), "MyCustomAlgo");
+    }
+
+    // ─── KeyId tests ─────────────────────────────────────────────────────────
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_key_id_from_uuid() {
+        let uuid = uuid::Uuid::new_v4();
+        let key_id = KeyId::from_uuid(uuid);
+        assert_eq!(key_id.as_uuid(), &uuid);
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_key_id_parse_invalid_string() {
+        let result = KeyId::parse("not-a-valid-uuid");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            Error::ParseError(msg) => {
+                assert!(!msg.is_empty(), "Parse error should have a message");
+            }
+            other => panic!("Expected ParseError, got: {:?}", other),
+        }
     }
 }

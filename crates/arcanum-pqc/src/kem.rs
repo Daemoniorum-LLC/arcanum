@@ -48,6 +48,7 @@ impl MlKem768DecapsulationKey {
     pub const SIZE: usize = 2400;
 
     /// Create from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() != Self::SIZE {
             return Err(Error::InvalidKeyLength {
@@ -116,6 +117,7 @@ impl MlKem768EncapsulationKey {
     pub const SIZE: usize = 1184;
 
     /// Create from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() != Self::SIZE {
             return Err(Error::InvalidKeyLength {
@@ -162,6 +164,7 @@ impl MlKem768Ciphertext {
     pub const SIZE: usize = 1088;
 
     /// Create from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() != Self::SIZE {
             return Err(Error::InvalidCiphertext);
@@ -191,6 +194,7 @@ pub struct MlKem768SharedSecret {
 
 impl MlKem768SharedSecret {
     /// Create from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         let arr: [u8; 32] = bytes.try_into().map_err(|_| Error::InvalidKeyLength {
             expected: 32,
@@ -309,6 +313,7 @@ impl MlKem512 {
     }
 
     /// Encapsulate to produce ciphertext and shared secret.
+    #[must_use = "encapsulation can fail; check the Result"]
     pub fn encapsulate(ek_bytes: &[u8]) -> Result<(Vec<u8>, [u8; 32])> {
         let arr: [u8; 800] = ek_bytes.try_into().map_err(|_| Error::InvalidKeyFormat)?;
         let ek = EncapsulationKey::<MlKem512Params>::from_bytes(&arr.into());
@@ -321,6 +326,7 @@ impl MlKem512 {
     }
 
     /// Decapsulate to recover shared secret.
+    #[must_use = "decapsulation can fail; check the Result"]
     pub fn decapsulate(dk_bytes: &[u8], ct_bytes: &[u8]) -> Result<[u8; 32]> {
         let dk_arr: [u8; 1632] = dk_bytes.try_into().map_err(|_| Error::InvalidKeyFormat)?;
         let dk = DecapsulationKey::<MlKem512Params>::from_bytes(&dk_arr.into());
@@ -360,6 +366,7 @@ impl MlKem1024 {
     }
 
     /// Encapsulate to produce ciphertext and shared secret.
+    #[must_use = "encapsulation can fail; check the Result"]
     pub fn encapsulate(ek_bytes: &[u8]) -> Result<(Vec<u8>, [u8; 32])> {
         let arr: [u8; 1568] = ek_bytes.try_into().map_err(|_| Error::InvalidKeyFormat)?;
         let ek = EncapsulationKey::<MlKem1024Params>::from_bytes(&arr.into());
@@ -372,6 +379,7 @@ impl MlKem1024 {
     }
 
     /// Decapsulate to recover shared secret.
+    #[must_use = "decapsulation can fail; check the Result"]
     pub fn decapsulate(dk_bytes: &[u8], ct_bytes: &[u8]) -> Result<[u8; 32]> {
         let dk_arr: [u8; 3168] = dk_bytes.try_into().map_err(|_| Error::InvalidKeyFormat)?;
         let dk = DecapsulationKey::<MlKem1024Params>::from_bytes(&dk_arr.into());
@@ -440,5 +448,280 @@ mod tests {
 
         let (ct, _ss) = MlKem768::encapsulate(&ek);
         assert_eq!(ct.to_bytes().len(), 1088);
+    }
+
+    // =========================================================================
+    // FIPS 203 Consistency Tests
+    //
+    // ML-KEM FIPS 203 KAT compliance is validated by the upstream `ml-kem`
+    // crate (RustCrypto). These tests verify the wrapper layer preserves
+    // correctness through serialization roundtrips and cross-variant isolation.
+    // =========================================================================
+
+    #[test]
+    fn test_ml_kem_768_key_serialization_roundtrip() {
+        let (dk, ek) = MlKem768::generate_keypair();
+
+        // Serialize and deserialize decapsulation key
+        let dk_bytes = dk.to_bytes();
+        let dk_restored = MlKem768DecapsulationKey::from_bytes(&dk_bytes).unwrap();
+
+        // Serialize and deserialize encapsulation key
+        let ek_bytes = ek.to_bytes();
+        let ek_restored = MlKem768EncapsulationKey::from_bytes(&ek_bytes).unwrap();
+
+        // Encapsulate with restored key
+        let (ct, ss1) = MlKem768::encapsulate(&ek_restored);
+
+        // Decapsulate with restored key
+        let ss2 = MlKem768::decapsulate(&dk_restored, &ct).unwrap();
+        assert_eq!(ss1, ss2);
+    }
+
+    #[test]
+    fn test_ml_kem_512_key_serialization_roundtrip() {
+        let (dk, ek) = MlKem512::generate_keypair();
+
+        let dk_restored = MlKem512::decapsulate(
+            &dk,
+            &MlKem512::encapsulate(&ek).unwrap().0,
+        );
+        assert!(dk_restored.is_ok());
+
+        // Roundtrip through bytes
+        let (ct, ss1) = MlKem512::encapsulate(&ek).unwrap();
+        let ss2 = MlKem512::decapsulate(&dk, &ct).unwrap();
+        assert_eq!(ss1, ss2);
+    }
+
+    #[test]
+    fn test_ml_kem_1024_key_serialization_roundtrip() {
+        let (dk, ek) = MlKem1024::generate_keypair();
+
+        let (ct, ss1) = MlKem1024::encapsulate(&ek).unwrap();
+        let ss2 = MlKem1024::decapsulate(&dk, &ct).unwrap();
+        assert_eq!(ss1, ss2);
+
+        // Verify sizes match FIPS 203 specifications
+        assert_eq!(dk.len(), MlKem1024::DK_SIZE);
+        assert_eq!(ek.len(), MlKem1024::EK_SIZE);
+        assert_eq!(ct.len(), MlKem1024::CT_SIZE);
+    }
+
+    #[test]
+    fn test_ml_kem_768_ciphertext_serialization_roundtrip() {
+        let (dk, ek) = MlKem768::generate_keypair();
+        let (ct, ss1) = MlKem768::encapsulate(&ek);
+
+        // Serialize and deserialize ciphertext
+        let ct_bytes = ct.to_bytes();
+        let ct_restored = MlKem768Ciphertext::from_bytes(&ct_bytes).unwrap();
+
+        // Decapsulate with restored ciphertext
+        let ss2 = MlKem768::decapsulate(&dk, &ct_restored).unwrap();
+        assert_eq!(ss1, ss2);
+    }
+
+    #[test]
+    fn test_ml_kem_invalid_key_lengths_rejected() {
+        // Too short
+        assert!(MlKem768DecapsulationKey::from_bytes(&[0u8; 100]).is_err());
+        assert!(MlKem768EncapsulationKey::from_bytes(&[0u8; 100]).is_err());
+        assert!(MlKem768Ciphertext::from_bytes(&[0u8; 100]).is_err());
+
+        // Too long
+        assert!(MlKem768DecapsulationKey::from_bytes(&[0u8; 2401]).is_err());
+        assert!(MlKem768EncapsulationKey::from_bytes(&[0u8; 1185]).is_err());
+        assert!(MlKem768Ciphertext::from_bytes(&[0u8; 1089]).is_err());
+
+        // Empty
+        assert!(MlKem768DecapsulationKey::from_bytes(&[]).is_err());
+        assert!(MlKem768EncapsulationKey::from_bytes(&[]).is_err());
+        assert!(MlKem768Ciphertext::from_bytes(&[]).is_err());
+    }
+
+    #[test]
+    fn test_ml_kem_implicit_reject() {
+        // FIPS 203 mandates implicit rejection: decapsulating with wrong key
+        // must not fail, but must produce a different shared secret.
+        let (dk1, ek1) = MlKem768::generate_keypair();
+        let (dk2, _ek2) = MlKem768::generate_keypair();
+
+        let (ct, ss_correct) = MlKem768::encapsulate(&ek1);
+
+        // Decapsulation with wrong key should succeed (implicit reject)
+        let ss_wrong = MlKem768::decapsulate(&dk2, &ct).unwrap();
+        assert_ne!(ss_correct, ss_wrong, "Implicit rejection must produce different shared secret");
+
+        // Correct key must produce correct shared secret
+        let ss_verify = MlKem768::decapsulate(&dk1, &ct).unwrap();
+        assert_eq!(ss_correct, ss_verify);
+    }
+
+    #[test]
+    fn test_ml_kem_all_variants_key_sizes_match_fips_203() {
+        // FIPS 203 Table 3: ML-KEM parameter sets
+        // ML-KEM-512:  dk=1632, ek=800, ct=768
+        // ML-KEM-768:  dk=2400, ek=1184, ct=1088
+        // ML-KEM-1024: dk=3168, ek=1568, ct=1568
+
+        assert_eq!(MlKem512::DK_SIZE, 1632);
+        assert_eq!(MlKem512::EK_SIZE, 800);
+        assert_eq!(MlKem512::CT_SIZE, 768);
+
+        assert_eq!(MlKem768DecapsulationKey::SIZE, 2400);
+        assert_eq!(MlKem768EncapsulationKey::SIZE, 1184);
+        assert_eq!(MlKem768Ciphertext::SIZE, 1088);
+
+        assert_eq!(MlKem1024::DK_SIZE, 3168);
+        assert_eq!(MlKem1024::EK_SIZE, 1568);
+        assert_eq!(MlKem1024::CT_SIZE, 1568);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // IMPLICIT REJECTION DEPTH TESTS (Phase 5.9)
+    // FIPS 203 §7.3: Decapsulation with invalid ciphertext must:
+    // 1. Return a shared secret (not an error)
+    // 2. Be deterministic (same bad CT → same SS)
+    // 3. Vary with different bad CTs (not a constant)
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    /// Implicit rejection must be deterministic: same bad ciphertext → same result.
+    #[test]
+    fn test_ml_kem_768_implicit_rejection_is_deterministic() {
+        let (dk, _ek) = MlKem768::generate_keypair();
+
+        // Create an invalid ciphertext (random bytes)
+        let bad_ct = MlKem768Ciphertext::from_bytes(&[0xAB; MlKem768Ciphertext::SIZE]).unwrap();
+
+        // Decapsulate twice with the same bad ciphertext
+        let ss1 = MlKem768::decapsulate(&dk, &bad_ct).unwrap();
+        let ss2 = MlKem768::decapsulate(&dk, &bad_ct).unwrap();
+
+        assert_eq!(
+            ss1, ss2,
+            "Implicit rejection must be deterministic: same bad CT should produce same SS"
+        );
+    }
+
+    /// Different invalid ciphertexts must produce different rejection secrets.
+    #[test]
+    fn test_ml_kem_768_implicit_rejection_varies_by_ciphertext() {
+        let (dk, _ek) = MlKem768::generate_keypair();
+
+        let bad_ct_a = MlKem768Ciphertext::from_bytes(&[0xAA; MlKem768Ciphertext::SIZE]).unwrap();
+        let bad_ct_b = MlKem768Ciphertext::from_bytes(&[0xBB; MlKem768Ciphertext::SIZE]).unwrap();
+
+        let ss_a = MlKem768::decapsulate(&dk, &bad_ct_a).unwrap();
+        let ss_b = MlKem768::decapsulate(&dk, &bad_ct_b).unwrap();
+
+        assert_ne!(
+            ss_a, ss_b,
+            "Different bad ciphertexts must produce different rejection secrets"
+        );
+    }
+
+    /// Rejection secret must not be all-zeros or another trivial constant.
+    #[test]
+    fn test_ml_kem_768_implicit_rejection_not_trivial() {
+        let (dk, _ek) = MlKem768::generate_keypair();
+
+        let bad_ct = MlKem768Ciphertext::from_bytes(&[0x00; MlKem768Ciphertext::SIZE]).unwrap();
+        let ss = MlKem768::decapsulate(&dk, &bad_ct).unwrap();
+
+        assert!(
+            !ss.as_bytes().iter().all(|&b| b == 0),
+            "Rejection secret must not be all-zeros"
+        );
+        assert!(
+            !ss.as_bytes().iter().all(|&b| b == 0xFF),
+            "Rejection secret must not be all-ones"
+        );
+    }
+
+    /// Test implicit rejection properties across all ML-KEM variants.
+    #[test]
+    fn test_ml_kem_512_implicit_rejection_depth() {
+        let (dk, _ek) = MlKem512::generate_keypair();
+
+        let bad_ct_a = vec![0xAA; MlKem512::CT_SIZE];
+        let bad_ct_b = vec![0xBB; MlKem512::CT_SIZE];
+
+        // Deterministic
+        let ss1 = MlKem512::decapsulate(&dk, &bad_ct_a).unwrap();
+        let ss2 = MlKem512::decapsulate(&dk, &bad_ct_a).unwrap();
+        assert_eq!(ss1, ss2, "ML-KEM-512 implicit rejection must be deterministic");
+
+        // Varies by ciphertext
+        let ss_a = MlKem512::decapsulate(&dk, &bad_ct_a).unwrap();
+        let ss_b = MlKem512::decapsulate(&dk, &bad_ct_b).unwrap();
+        assert_ne!(ss_a, ss_b, "ML-KEM-512 must produce different secrets for different bad CTs");
+
+        // Not trivial
+        let bad_ct_zero = vec![0x00; MlKem512::CT_SIZE];
+        let ss_zero = MlKem512::decapsulate(&dk, &bad_ct_zero).unwrap();
+        assert!(!ss_zero.iter().all(|&b| b == 0), "ML-KEM-512 rejection secret must not be all-zeros");
+    }
+
+    /// Test implicit rejection properties for ML-KEM-1024.
+    #[test]
+    fn test_ml_kem_1024_implicit_rejection_depth() {
+        let (dk, _ek) = MlKem1024::generate_keypair();
+
+        let bad_ct_a = vec![0xAA; MlKem1024::CT_SIZE];
+        let bad_ct_b = vec![0xBB; MlKem1024::CT_SIZE];
+
+        // Deterministic
+        let ss1 = MlKem1024::decapsulate(&dk, &bad_ct_a).unwrap();
+        let ss2 = MlKem1024::decapsulate(&dk, &bad_ct_a).unwrap();
+        assert_eq!(ss1, ss2, "ML-KEM-1024 implicit rejection must be deterministic");
+
+        // Varies by ciphertext
+        let ss_a = MlKem1024::decapsulate(&dk, &bad_ct_a).unwrap();
+        let ss_b = MlKem1024::decapsulate(&dk, &bad_ct_b).unwrap();
+        assert_ne!(ss_a, ss_b, "ML-KEM-1024 must produce different secrets for different bad CTs");
+
+        // Not trivial
+        let bad_ct_zero = vec![0x00; MlKem1024::CT_SIZE];
+        let ss_zero = MlKem1024::decapsulate(&dk, &bad_ct_zero).unwrap();
+        assert!(!ss_zero.iter().all(|&b| b == 0), "ML-KEM-1024 rejection secret must not be all-zeros");
+    }
+
+    /// Rejection secret must differ from the valid shared secret.
+    #[test]
+    fn test_ml_kem_768_rejection_differs_from_valid() {
+        let (dk, ek) = MlKem768::generate_keypair();
+        let (ct, ss_valid) = MlKem768::encapsulate(&ek);
+
+        // Create a corrupted ciphertext by flipping some bytes
+        let mut corrupted_bytes = ct.to_bytes();
+        for b in &mut corrupted_bytes[..32] {
+            *b ^= 0xFF;
+        }
+        let corrupted_ct = MlKem768Ciphertext::from_bytes(&corrupted_bytes).unwrap();
+
+        let ss_reject = MlKem768::decapsulate(&dk, &corrupted_ct).unwrap();
+
+        assert_ne!(
+            ss_valid, ss_reject,
+            "Rejection secret must differ from valid shared secret"
+        );
+    }
+
+    /// Test that implicit rejection is key-specific.
+    #[test]
+    fn test_ml_kem_768_rejection_is_key_specific() {
+        let (dk1, _ek1) = MlKem768::generate_keypair();
+        let (dk2, _ek2) = MlKem768::generate_keypair();
+
+        let bad_ct = MlKem768Ciphertext::from_bytes(&[0xAB; MlKem768Ciphertext::SIZE]).unwrap();
+
+        let ss1 = MlKem768::decapsulate(&dk1, &bad_ct).unwrap();
+        let ss2 = MlKem768::decapsulate(&dk2, &bad_ct).unwrap();
+
+        assert_ne!(
+            ss1, ss2,
+            "Different decapsulation keys must produce different rejection secrets for same bad CT"
+        );
     }
 }

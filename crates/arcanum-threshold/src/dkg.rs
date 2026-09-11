@@ -15,10 +15,17 @@
 //! 3. **Verification**: Each participant verifies received shares against
 //!    the commitments and computes their final signing share.
 
+#[cfg(not(feature = "std"))]
+use alloc::{vec::Vec, format};
+
 use crate::error::{Result, ThresholdError};
 use crate::frost::PublicKeyPackage;
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "std")]
 use std::collections::BTreeMap;
+#[cfg(not(feature = "std"))]
+use alloc::collections::BTreeMap;
 
 #[cfg(feature = "frost-ed25519")]
 use frost_ed25519 as frost;
@@ -49,6 +56,7 @@ impl DkgParticipant {
     /// * `id` - Participant identifier (1-based, must be <= total)
     /// * `threshold` - Minimum number of participants needed to sign
     /// * `total` - Total number of participants
+    #[must_use = "construction can fail; check the Result"]
     pub fn new(id: u16, threshold: u16, total: u16) -> Result<Self> {
         if id == 0 || id > total {
             return Err(ThresholdError::InvalidParticipant(id));
@@ -82,6 +90,7 @@ impl DkgParticipant {
     ///
     /// Generates a secret polynomial and returns the public package
     /// to broadcast to all participants.
+    #[must_use = "this operation can fail; check the Result"]
     pub fn round1(&mut self) -> Result<DkgRound1> {
         let mut rng = rand::rngs::OsRng;
 
@@ -101,6 +110,7 @@ impl DkgParticipant {
     ///
     /// # Arguments
     /// * `round1_packages` - Round 1 packages from all participants (including self)
+    #[must_use = "this operation can fail; check the Result"]
     pub fn round2(&mut self, round1_packages: &[DkgRound1]) -> Result<Vec<DkgRound2>> {
         let secret_package = self
             .round1_secret
@@ -135,6 +145,7 @@ impl DkgParticipant {
     /// # Arguments
     /// * `round1_packages` - Round 1 packages from all participants
     /// * `round2_packages` - Round 2 packages addressed to this participant
+    #[must_use = "this operation can fail; check the Result"]
     pub fn finalize(
         &mut self,
         round1_packages: &[DkgRound1],
@@ -172,8 +183,8 @@ impl DkgParticipant {
     }
 }
 
-impl std::fmt::Debug for DkgParticipant {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for DkgParticipant {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "DkgParticipant(id={}, threshold={}, total={})",
@@ -214,8 +225,8 @@ impl DkgRound1 {
     }
 }
 
-impl std::fmt::Debug for DkgRound1 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for DkgRound1 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "DkgRound1({} bytes)", self.bytes.len())
     }
 }
@@ -257,8 +268,8 @@ impl DkgRound2 {
     }
 }
 
-impl std::fmt::Debug for DkgRound2 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for DkgRound2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "DkgRound2({} bytes)", self.bytes.len())
     }
 }
@@ -267,6 +278,7 @@ impl std::fmt::Debug for DkgRound2 {
 ///
 /// This is a helper for testing that simulates the full DKG protocol.
 /// In production, participants would communicate over a network.
+#[must_use = "this operation can fail; check the Result"]
 pub fn run_dkg(
     threshold: u16,
     total: u16,

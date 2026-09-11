@@ -7,6 +7,9 @@
 //! - Resistant to side-channel attacks
 //! - Widely deployed (SSH, TLS, Signal, etc.)
 
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec::Vec};
+
 use crate::traits::{self, BatchVerifier, VerifyingKey};
 use arcanum_core::error::{Error, Result};
 use ed25519_dalek::{
@@ -79,8 +82,8 @@ impl traits::SigningKey for Ed25519SigningKey {
     }
 }
 
-impl std::fmt::Debug for Ed25519SigningKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Ed25519SigningKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Ed25519SigningKey([REDACTED])")
     }
 }
@@ -103,7 +106,7 @@ mod verifying_key_serde {
     pub fn serialize<S>(
         key: &DalekVerifyingKey,
         serializer: S,
-    ) -> std::result::Result<S::Ok, S::Error>
+    ) -> core::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -115,7 +118,7 @@ mod verifying_key_serde {
         }
     }
 
-    pub fn deserialize<'de, D>(deserializer: D) -> std::result::Result<DalekVerifyingKey, D::Error>
+    pub fn deserialize<'de, D>(deserializer: D) -> core::result::Result<DalekVerifyingKey, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -175,8 +178,8 @@ impl traits::VerifyingKey for Ed25519VerifyingKey {
     }
 }
 
-impl std::fmt::Debug for Ed25519VerifyingKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Ed25519VerifyingKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "Ed25519VerifyingKey({})",
@@ -185,8 +188,8 @@ impl std::fmt::Debug for Ed25519VerifyingKey {
     }
 }
 
-impl std::fmt::Display for Ed25519VerifyingKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for Ed25519VerifyingKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", hex::encode(self.inner.to_bytes()))
     }
 }
@@ -206,7 +209,7 @@ mod signature_serde {
     use super::*;
     use serde::{Deserializer, Serializer};
 
-    pub fn serialize<S>(sig: &DalekSignature, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    pub fn serialize<S>(sig: &DalekSignature, serializer: S) -> core::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -218,7 +221,7 @@ mod signature_serde {
         }
     }
 
-    pub fn deserialize<'de, D>(deserializer: D) -> std::result::Result<DalekSignature, D::Error>
+    pub fn deserialize<'de, D>(deserializer: D) -> core::result::Result<DalekSignature, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -259,8 +262,8 @@ impl traits::Signature for Ed25519Signature {
     }
 }
 
-impl std::fmt::Debug for Ed25519Signature {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Ed25519Signature {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "Ed25519Signature({})",

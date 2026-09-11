@@ -7,6 +7,9 @@
 //! - Linear (enables signature aggregation)
 //! - Simpler, more efficient
 
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec::Vec};
+
 use crate::traits;
 use arcanum_core::error::{Error, Result};
 use k256::schnorr::{
@@ -67,8 +70,8 @@ impl traits::SigningKey for SchnorrSigningKey {
     }
 }
 
-impl std::fmt::Debug for SchnorrSigningKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for SchnorrSigningKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "SchnorrSigningKey([REDACTED])")
     }
 }
@@ -91,7 +94,7 @@ mod schnorr_verifying_key_serde {
     pub fn serialize<S>(
         key: &SchnorrVerifyingKeyInner,
         serializer: S,
-    ) -> std::result::Result<S::Ok, S::Error>
+    ) -> core::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -105,7 +108,7 @@ mod schnorr_verifying_key_serde {
 
     pub fn deserialize<'de, D>(
         deserializer: D,
-    ) -> std::result::Result<SchnorrVerifyingKeyInner, D::Error>
+    ) -> core::result::Result<SchnorrVerifyingKeyInner, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -148,8 +151,8 @@ impl traits::VerifyingKey for SchnorrVerifyingKey {
     }
 }
 
-impl std::fmt::Debug for SchnorrVerifyingKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for SchnorrVerifyingKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "SchnorrVerifyingKey({})",
@@ -158,8 +161,8 @@ impl std::fmt::Debug for SchnorrVerifyingKey {
     }
 }
 
-impl std::fmt::Display for SchnorrVerifyingKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for SchnorrVerifyingKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", hex::encode(self.inner.to_bytes()))
     }
 }
@@ -182,7 +185,7 @@ mod schnorr_signature_serde {
     pub fn serialize<S>(
         sig: &SchnorrSignatureInner,
         serializer: S,
-    ) -> std::result::Result<S::Ok, S::Error>
+    ) -> core::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -196,7 +199,7 @@ mod schnorr_signature_serde {
 
     pub fn deserialize<'de, D>(
         deserializer: D,
-    ) -> std::result::Result<SchnorrSignatureInner, D::Error>
+    ) -> core::result::Result<SchnorrSignatureInner, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -224,8 +227,8 @@ impl traits::Signature for SchnorrSignature {
     }
 }
 
-impl std::fmt::Debug for SchnorrSignature {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for SchnorrSignature {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
             "SchnorrSignature({})",
@@ -316,5 +319,188 @@ mod tests {
         let restored: SchnorrVerifyingKey = serde_json::from_str(&json).unwrap();
 
         assert_eq!(verifying_key, restored);
+    }
+
+    #[test]
+    fn test_generate_keypair_convenience() {
+        let (signing_key, verifying_key) = generate_keypair();
+
+        // Verify the keypair is functional: sign and verify a message
+        let message = b"keypair convenience test";
+        let signature = signing_key.sign(message);
+        assert!(
+            verifying_key.verify(message, &signature).is_ok(),
+            "signature from generate_keypair should verify successfully"
+        );
+
+        // Verify the verifying key from the signing key matches the returned one
+        let derived_vk = signing_key.verifying_key();
+        assert_eq!(
+            derived_vk, verifying_key,
+            "verifying key from signing_key should match returned verifying key"
+        );
+    }
+
+    #[test]
+    fn test_signing_key_from_bytes_invalid() {
+        // All zeros is not a valid secp256k1 private key
+        let zeros = [0u8; 32];
+        let result = SchnorrSigningKey::from_bytes(&zeros);
+        assert!(
+            result.is_err(),
+            "all-zero bytes should not produce a valid signing key"
+        );
+
+        // Wrong length (too short)
+        let short = [1u8; 16];
+        let result = SchnorrSigningKey::from_bytes(&short);
+        assert!(
+            result.is_err(),
+            "16-byte input should be rejected for signing key"
+        );
+    }
+
+    #[test]
+    fn test_signing_key_to_bytes_roundtrip() {
+        let original = SchnorrSigningKey::generate();
+        let bytes = original.to_bytes();
+
+        assert_eq!(
+            bytes.len(),
+            32,
+            "signing key should serialize to 32 bytes"
+        );
+
+        let restored = SchnorrSigningKey::from_bytes(&bytes).expect("roundtrip should succeed");
+
+        // Verify functional equivalence: both keys produce signatures the same verifying key accepts
+        let message = b"roundtrip test message";
+        let original_vk = original.verifying_key();
+        let restored_vk = restored.verifying_key();
+        assert_eq!(
+            original_vk, restored_vk,
+            "restored key should derive the same verifying key"
+        );
+
+        let sig = restored.sign(message);
+        assert!(
+            original_vk.verify(message, &sig).is_ok(),
+            "signature from restored key should verify with original verifying key"
+        );
+    }
+
+    #[test]
+    fn test_sign_prehashed() {
+        let signing_key = SchnorrSigningKey::generate();
+        let verifying_key = signing_key.verifying_key();
+
+        // Simulate a prehashed message (32-byte hash)
+        let prehash = [0xAB_u8; 32];
+        let signature = signing_key
+            .sign_prehashed(&prehash)
+            .expect("sign_prehashed should succeed");
+
+        // Verify the prehashed signature using verify_prehashed
+        assert!(
+            verifying_key.verify_prehashed(&prehash, &signature).is_ok(),
+            "prehashed signature should verify with verify_prehashed"
+        );
+
+        // Verify it fails with different prehash data
+        let wrong_prehash = [0xCD_u8; 32];
+        assert!(
+            verifying_key
+                .verify_prehashed(&wrong_prehash, &signature)
+                .is_err(),
+            "prehashed signature should fail with different hash"
+        );
+    }
+
+    #[test]
+    fn test_signature_from_bytes_invalid_length() {
+        // SchnorrSignature is 64 bytes per BIP-340.
+        // The underlying k256 crate panics on inputs shorter than 64 bytes
+        // (rather than returning Err), so we test short inputs via catch_unwind.
+
+        // Too short: 32 bytes instead of 64 -- k256 panics on split_at
+        let short_result = std::panic::catch_unwind(|| {
+            let short_bytes = [0xAA_u8; 32];
+            SchnorrSignature::from_bytes(&short_bytes)
+        });
+        assert!(
+            short_result.is_err() || short_result.unwrap().is_err(),
+            "32-byte input must not produce a valid 64-byte Schnorr signature"
+        );
+
+        // Empty input
+        let empty_result = std::panic::catch_unwind(|| {
+            SchnorrSignature::from_bytes(&[])
+        });
+        assert!(
+            empty_result.is_err() || empty_result.unwrap().is_err(),
+            "empty input must not produce a valid Schnorr signature"
+        );
+
+        // Too long: 128 bytes -- k256 returns Err for this case
+        let long_bytes = [0xBB_u8; 128];
+        let result = SchnorrSignature::from_bytes(&long_bytes);
+        assert!(
+            result.is_err(),
+            "128-byte input should be rejected for a 64-byte Schnorr signature"
+        );
+    }
+
+    #[test]
+    fn test_signing_key_debug_shows_redacted() {
+        let signing_key = SchnorrSigningKey::generate();
+        let debug_output = format!("{:?}", signing_key);
+
+        assert_eq!(
+            debug_output, "SchnorrSigningKey([REDACTED])",
+            "Debug output must show [REDACTED] to avoid leaking key material"
+        );
+        // Ensure the raw key bytes do NOT appear in the debug output
+        let key_hex = hex::encode(signing_key.to_bytes());
+        assert!(
+            !debug_output.contains(&key_hex),
+            "Debug output must not contain actual key bytes"
+        );
+    }
+
+    #[test]
+    fn test_verifying_key_debug_and_display_formats() {
+        let signing_key = SchnorrSigningKey::generate();
+        let verifying_key = signing_key.verifying_key();
+        let key_hex = hex::encode(verifying_key.to_bytes());
+
+        // Debug format: SchnorrVerifyingKey(<hex>)
+        let debug_output = format!("{:?}", verifying_key);
+        assert!(
+            debug_output.starts_with("SchnorrVerifyingKey("),
+            "Debug should start with 'SchnorrVerifyingKey(': {}",
+            debug_output
+        );
+        assert!(
+            debug_output.contains(&key_hex),
+            "Debug should contain hex-encoded public key: {}",
+            debug_output
+        );
+        assert!(
+            debug_output.ends_with(')'),
+            "Debug should end with ')': {}",
+            debug_output
+        );
+
+        // Display format: just the hex string
+        let display_output = format!("{}", verifying_key);
+        assert_eq!(
+            display_output, key_hex,
+            "Display should be the raw hex of the public key"
+        );
+        assert_eq!(
+            display_output.len(),
+            64,
+            "Display of 32-byte key should be 64 hex chars"
+        );
     }
 }

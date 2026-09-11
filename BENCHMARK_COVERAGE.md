@@ -7,7 +7,7 @@ This document tracks benchmark coverage across all Arcanum crates.
 | Crate | Benchmark Functions | Status | Notes |
 |-------|---------------------|--------|-------|
 | arcanum-primitives | 28+ | Tested | Core primitives, BLAKE3, ChaCha20, Poly1305, CUDA |
-| arcanum-pqc | 12 | Tested | ML-KEM, ML-DSA, SLH-DSA all tested |
+| arcanum-pqc | 30+ | Tested | ML-KEM, ML-DSA, ML-DSA-Native, SLH-DSA (all levels), Hybrid KEM |
 | arcanum-signatures | 11 | Available | Ed25519, P-256 ECDSA |
 | arcanum-symmetric | 4 | Available | AES-GCM, ChaCha20-Poly1305 |
 | arcanum-asymmetric | 10 | Available | X25519, RSA, ECDH |
@@ -56,7 +56,9 @@ cargo bench -p arcanum-primitives --features "simd,rayon"
 ```bash
 cargo bench -p arcanum-pqc --features "ml-kem"
 cargo bench -p arcanum-pqc --features "ml-dsa"
+cargo bench -p arcanum-pqc --features "ml-dsa-native"
 cargo bench -p arcanum-pqc --features "slh-dsa"
+cargo bench -p arcanum-pqc --features "ml-kem,hybrid"
 ```
 
 | Benchmark | Feature Gates | Tested | Notes |
@@ -67,13 +69,18 @@ cargo bench -p arcanum-pqc --features "slh-dsa"
 | ML-DSA-44 | ml-dsa | Yes | Via ml-dsa crate |
 | ML-DSA-65 | ml-dsa | Yes | Via ml-dsa crate |
 | ML-DSA-87 | ml-dsa | Yes | Via ml-dsa crate |
-| ML-DSA-Native-44 | ml-dsa-native | No | Requires shake feature |
-| ML-DSA-Native-65 | ml-dsa-native | No | Requires shake feature |
-| ML-DSA-Native-87 | ml-dsa-native | No | Requires shake feature |
-| SLH-DSA-SHA2-128f | slh-dsa | Yes | Fast variant |
-| SLH-DSA-SHA2-128s | slh-dsa | Yes | Small signature variant |
-| X25519-ML-KEM-768 | hybrid | No | Hybrid scheme |
-| KEM-Comparison | ml-kem, hybrid | No | Comparison benchmark |
+| ML-DSA-Native-44 | ml-dsa-native | Yes | Native FIPS 204 implementation |
+| ML-DSA-Native-65 | ml-dsa-native | Yes | Native FIPS 204 implementation |
+| ML-DSA-Native-87 | ml-dsa-native | Yes | Native FIPS 204 implementation |
+| SLH-DSA-SHA2-128f | slh-dsa | Yes | 128-bit, fast variant |
+| SLH-DSA-SHA2-128s | slh-dsa | Yes | 128-bit, small signature variant |
+| SLH-DSA-SHA2-192f | slh-dsa | Yes | 192-bit, fast variant |
+| SLH-DSA-SHA2-192s | slh-dsa | Yes | 192-bit, small signature variant |
+| SLH-DSA-SHA2-256f | slh-dsa | Yes | 256-bit, fast variant |
+| SLH-DSA-SHA2-256s | slh-dsa | Yes | 256-bit, small signature variant |
+| SLH-DSA-Comparison | slh-dsa | Yes | Cross-level sign comparison (128f/192f/256f) |
+| X25519-ML-KEM-768 | hybrid | Yes | Hybrid classical+PQC scheme |
+| KEM-Comparison | ml-kem, hybrid | Yes | ML-KEM-768 vs X25519-ML-KEM-768 |
 
 ### arcanum-signatures (Available)
 
@@ -181,6 +188,21 @@ nvcc -O3 -arch=sm_89 --shared --compiler-options '-fPIC' blake3_cuda.cu -o libbl
 cargo bench -p arcanum-primitives --features "simd,rayon,cuda" -- "BLAKE3-CUDA"
 ```
 
+### Comparative Benchmarks (Tested)
+
+```bash
+cd benches/comparative && cargo bench
+```
+
+| Benchmark | Implementations | Tested |
+|-----------|-----------------|--------|
+| AES-256-GCM (64B-64KB) | RustCrypto vs ring | Yes |
+| ChaCha20-Poly1305 (64B-64KB) | RustCrypto vs ring | Yes |
+| Ed25519 keygen/sign/verify | RustCrypto vs ring | Yes |
+| SHA-256 (64B-64KB) | RustCrypto vs ring | Yes |
+| BLAKE3 (64B-64KB) | blake3 crate | Yes |
+| Algorithm comparison (4KB) | All algorithms | Yes |
+
 ## Running All Benchmarks
 
 ```bash
@@ -193,7 +215,12 @@ cargo bench -p arcanum-primitives --features "simd,rayon,cuda" -- "BLAKE3-CUDA"
 # PQC (each feature separately)
 cargo bench -p arcanum-pqc --features "ml-kem"
 cargo bench -p arcanum-pqc --features "ml-dsa"
+cargo bench -p arcanum-pqc --features "ml-dsa-native"
 cargo bench -p arcanum-pqc --features "slh-dsa"
+cargo bench -p arcanum-pqc --features "ml-kem,hybrid"
+
+# Comparative (RustCrypto vs ring)
+cd benches/comparative && cargo bench
 
 # Other crates
 cargo bench -p arcanum-signatures
@@ -204,12 +231,14 @@ cargo bench -p arcanum-threshold
 cargo bench -p arcanum-zkp
 ```
 
-## Known Gaps
+## Resolved Gaps
 
-1. **ML-DSA-Native benchmarks**: Requires `shake` feature (native implementation)
-2. **Hybrid KEM benchmarks**: X25519+ML-KEM hybrid not yet benchmarked
-3. **Comparative benchmarks**: `benches/comparative/` exists but was not run
-4. **SLH-DSA variants**: Only 128-bit security level tested (higher levels available)
+All previously documented gaps have been addressed:
+
+1. ~~**ML-DSA-Native benchmarks**~~: Tested (ml-dsa-native feature, keygen/sign/verify/cycle for 44/65/87)
+2. ~~**Hybrid KEM benchmarks**~~: Tested (X25519-ML-KEM-768 keygen/encap/decap/full + KEM comparison)
+3. ~~**Comparative benchmarks**~~: Tested (RustCrypto vs ring for AES-GCM, ChaCha20-Poly1305, Ed25519, SHA-256, BLAKE3)
+4. ~~**SLH-DSA variants**~~: Tested (all 6 SHA2 variants: 128f/128s/192f/192s/256f/256s + cross-level comparison)
 
 ## Benchmark Data Locations
 

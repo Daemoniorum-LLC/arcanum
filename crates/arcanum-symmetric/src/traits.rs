@@ -1,5 +1,8 @@
 //! Traits for symmetric encryption algorithms.
 
+#[cfg(not(feature = "std"))]
+use alloc::{vec, vec::Vec};
+
 use arcanum_core::error::{Error, Result};
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -22,6 +25,7 @@ pub const MAX_AAD_SIZE: usize = 1 << 24; // 16 MiB
 ///
 /// Returns an error if the plaintext exceeds `MAX_PLAINTEXT_SIZE`.
 #[inline]
+#[must_use = "validation can fail; check the Result"]
 pub fn validate_plaintext_size(plaintext: &[u8]) -> Result<()> {
     if plaintext.len() > MAX_PLAINTEXT_SIZE {
         return Err(Error::PlaintextTooLarge {
@@ -36,6 +40,7 @@ pub fn validate_plaintext_size(plaintext: &[u8]) -> Result<()> {
 ///
 /// Returns an error if the AAD exceeds `MAX_AAD_SIZE`.
 #[inline]
+#[must_use = "validation can fail; check the Result"]
 pub fn validate_aad_size(aad: &[u8]) -> Result<()> {
     if aad.len() > MAX_AAD_SIZE {
         return Err(Error::AadTooLarge {
@@ -48,6 +53,7 @@ pub fn validate_aad_size(aad: &[u8]) -> Result<()> {
 
 /// Validate both plaintext and AAD sizes.
 #[inline]
+#[must_use = "validation can fail; check the Result"]
 pub fn validate_input_sizes(plaintext: &[u8], aad: Option<&[u8]>) -> Result<()> {
     validate_plaintext_size(plaintext)?;
     if let Some(aad) = aad {
@@ -80,6 +86,7 @@ pub trait Cipher {
     /// Encrypt plaintext with optional associated data.
     ///
     /// Returns ciphertext with authentication tag appended.
+    #[must_use = "encryption can fail; check the Result"]
     fn encrypt(
         key: &[u8],
         nonce: &[u8],
@@ -90,6 +97,7 @@ pub trait Cipher {
     /// Decrypt ciphertext with optional associated data.
     ///
     /// Returns plaintext if authentication succeeds.
+    #[must_use = "decryption can fail; check the Result"]
     fn decrypt(
         key: &[u8],
         nonce: &[u8],
@@ -98,6 +106,7 @@ pub trait Cipher {
     ) -> Result<Vec<u8>>;
 
     /// Encrypt in place (for zero-copy scenarios).
+    #[must_use = "encryption can fail; check the Result"]
     fn encrypt_in_place(
         key: &[u8],
         nonce: &[u8],
@@ -106,6 +115,7 @@ pub trait Cipher {
     ) -> Result<()>;
 
     /// Decrypt in place (for zero-copy scenarios).
+    #[must_use = "decryption can fail; check the Result"]
     fn decrypt_in_place(
         key: &[u8],
         nonce: &[u8],
@@ -124,6 +134,7 @@ pub trait StreamCipher {
     const ALGORITHM: &'static str;
 
     /// Create a new stream cipher instance.
+    #[must_use = "construction can fail; check the Result"]
     fn new(key: &[u8], nonce: &[u8]) -> Result<Self>
     where
         Self: Sized;
@@ -141,6 +152,7 @@ pub trait StreamCipher {
     }
 
     /// Seek to a position in the keystream (if supported).
+    #[must_use = "this operation can fail; check the Result"]
     fn seek(&mut self, position: u64) -> Result<()>;
 
     /// Get current position in the keystream.

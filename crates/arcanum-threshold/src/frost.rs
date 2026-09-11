@@ -10,9 +10,16 @@
 //! - **Ed25519**: For EdDSA-compatible signatures
 //! - **secp256k1**: For Bitcoin/Ethereum compatibility
 
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+
 use crate::error::{Result, ThresholdError};
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "std")]
 use std::collections::BTreeMap;
+#[cfg(not(feature = "std"))]
+use alloc::collections::BTreeMap;
 
 #[cfg(feature = "frost-ed25519")]
 use frost_ed25519 as frost;
@@ -49,8 +56,8 @@ impl SigningShare {
     }
 }
 
-impl std::fmt::Debug for SigningShare {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for SigningShare {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "SigningShare(id={:?})", self.identifier)
     }
 }
@@ -66,6 +73,7 @@ pub struct VerifyingShare {
 
 impl VerifyingShare {
     /// Create from FROST verifying share.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_frost(id: frost::Identifier, share: &frost::keys::VerifyingShare) -> Result<Self> {
         Ok(Self {
             identifier_bytes: id.serialize(),
@@ -81,8 +89,8 @@ impl VerifyingShare {
     }
 }
 
-impl std::fmt::Debug for VerifyingShare {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for VerifyingShare {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "VerifyingShare({} bytes)", self.identifier_bytes.len())
     }
 }
@@ -95,6 +103,7 @@ pub struct GroupVerifyingKey {
 
 impl GroupVerifyingKey {
     /// Create from FROST verifying key.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_frost(key: &frost::VerifyingKey) -> Result<Self> {
         Ok(Self {
             bytes: key
@@ -109,14 +118,15 @@ impl GroupVerifyingKey {
     }
 
     /// Convert to FROST verifying key.
+    #[must_use = "this operation can fail; check the Result"]
     pub fn to_frost(&self) -> Result<frost::VerifyingKey> {
         frost::VerifyingKey::deserialize(&self.bytes)
             .map_err(|e| ThresholdError::InternalError(e.to_string()))
     }
 }
 
-impl std::fmt::Debug for GroupVerifyingKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for GroupVerifyingKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "GroupVerifyingKey({} bytes)", self.bytes.len())
     }
 }
@@ -139,11 +149,13 @@ impl FrostSigner {
     }
 
     /// Get the group verifying key.
+    #[must_use = "this operation can fail; check the Result"]
     pub fn group_verifying_key(&self) -> Result<GroupVerifyingKey> {
         GroupVerifyingKey::from_frost(self.key_package.verifying_key())
     }
 
     /// Generate round 1 commitment for signing.
+    #[must_use = "signing can fail; check the Result"]
     pub fn round1(&self) -> Result<(SigningNonces, SigningCommitments)> {
         let mut rng = rand::rngs::OsRng;
         let (nonces, commitments) =
@@ -156,6 +168,7 @@ impl FrostSigner {
     }
 
     /// Generate signature share in round 2.
+    #[must_use = "signing can fail; check the Result"]
     pub fn round2(
         &self,
         _message: &[u8],
@@ -210,6 +223,7 @@ pub struct SigningPackage {
 
 impl SigningPackage {
     /// Create a signing package from commitments.
+    #[must_use = "construction can fail; check the Result"]
     pub fn new(commitments: &[SigningCommitments], message: &[u8]) -> Result<Self> {
         let mut commitment_map = BTreeMap::new();
 
@@ -257,6 +271,7 @@ pub struct FrostVerifier {
 
 impl FrostVerifier {
     /// Create a verifier from the group verifying key.
+    #[must_use = "construction can fail; check the Result"]
     pub fn new(key: &GroupVerifyingKey) -> Result<Self> {
         Ok(Self {
             verifying_key: key.to_frost()?,
@@ -264,6 +279,7 @@ impl FrostVerifier {
     }
 
     /// Aggregate signature shares into a complete signature.
+    #[must_use = "signing can fail; check the Result"]
     pub fn aggregate(
         &self,
         signing_package: &SigningPackage,
@@ -313,6 +329,7 @@ impl PublicKeyPackage {
     }
 
     /// Get the group verifying key.
+    #[must_use = "this operation can fail; check the Result"]
     pub fn group_verifying_key(&self) -> Result<GroupVerifyingKey> {
         GroupVerifyingKey::from_frost(self.inner.verifying_key())
     }
@@ -341,8 +358,8 @@ impl Signature {
     }
 }
 
-impl std::fmt::Debug for Signature {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Signature {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Signature({} bytes)", self.bytes.len())
     }
 }
@@ -350,6 +367,7 @@ impl std::fmt::Debug for Signature {
 /// Generate key shares using a trusted dealer.
 ///
 /// For production, use DKG instead of trusted dealer.
+#[must_use = "key generation can fail; check the Result"]
 pub fn trusted_dealer_keygen(
     threshold: u16,
     total: u16,
@@ -492,5 +510,422 @@ mod tests {
 
         // Verify with wrong message should fail
         assert!(verifier.verify(wrong_message, &signature).is_err());
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // PHASE 5.2: FROST ADVERSARIAL PARTICIPANT TESTING
+    // These tests verify security properties under adversarial conditions:
+    // - Sub-threshold signing must fail
+    // - Corrupted shares must be detected
+    // - Duplicate participants must be rejected
+    // ═══════════════════════════════════════════════════════════════════════════════
+
+    mod adversarial {
+        use super::*;
+
+        /// Signing with t-1 participants must fail at some point in the protocol.
+        /// This tests the fundamental threshold property.
+        /// The FROST library correctly validates participant count and fails early
+        /// during round2 (signing package validation) rather than at aggregation.
+        #[test]
+        fn test_frost_insufficient_signers_fails() {
+            let threshold = 3u16;
+            let total = 5u16;
+            let message = b"insufficient signers test";
+
+            // Generate keys
+            let (shares, pubkey_package) = trusted_dealer_keygen(threshold, total).unwrap();
+
+            // Only use t-1 participants (should fail somewhere in the protocol)
+            let insufficient_count = (threshold - 1) as usize;
+            let key_packages: Vec<_> = shares
+                .iter()
+                .take(insufficient_count)
+                .map(|s| frost::keys::KeyPackage::try_from(s.clone()).unwrap())
+                .collect();
+
+            let signers: Vec<_> = key_packages
+                .iter()
+                .map(|kp| FrostSigner::new(kp.clone()))
+                .collect();
+
+            // Round 1
+            let mut all_nonces = Vec::new();
+            let mut all_commitments = Vec::new();
+            for signer in &signers {
+                let (nonces, commitments) = signer.round1().unwrap();
+                all_nonces.push(nonces);
+                all_commitments.push(commitments);
+            }
+
+            let signing_package = SigningPackage::new(&all_commitments, message).unwrap();
+
+            // Round 2 - FROST library detects insufficient signers here
+            let mut signing_failed = false;
+            let mut signature_shares = Vec::new();
+            for (i, signer) in signers.iter().enumerate() {
+                match signer.round2(message, &all_nonces[i], &signing_package) {
+                    Ok(share) => signature_shares.push(share),
+                    Err(_) => {
+                        signing_failed = true;
+                        break;
+                    }
+                }
+            }
+
+            // If round2 didn't fail, aggregation should fail
+            if !signing_failed {
+                let group_key =
+                    GroupVerifyingKey::from_frost(pubkey_package.verifying_key()).unwrap();
+                let verifier = FrostVerifier::new(&group_key).unwrap();
+                let pkg = PublicKeyPackage::from_frost(pubkey_package);
+
+                let result = verifier.aggregate(&signing_package, &signature_shares, &pkg);
+                assert!(
+                    result.is_err(),
+                    "Signing with t-1 participants must fail (threshold={})",
+                    threshold
+                );
+            }
+            // If round2 failed, the security property is satisfied
+        }
+
+        /// Corrupted signature share must be detected during aggregation.
+        /// This tests Byzantine fault tolerance.
+        #[test]
+        fn test_frost_corrupted_signature_share_detected() {
+            let threshold = 3u16;
+            let total = 5u16;
+            let message = b"corruption detection test";
+
+            let (shares, pubkey_package) = trusted_dealer_keygen(threshold, total).unwrap();
+
+            let key_packages: Vec<_> = shares
+                .iter()
+                .take(threshold as usize)
+                .map(|s| frost::keys::KeyPackage::try_from(s.clone()).unwrap())
+                .collect();
+
+            let signers: Vec<_> = key_packages
+                .iter()
+                .map(|kp| FrostSigner::new(kp.clone()))
+                .collect();
+
+            // Round 1
+            let mut all_nonces = Vec::new();
+            let mut all_commitments = Vec::new();
+            for signer in &signers {
+                let (nonces, commitments) = signer.round1().unwrap();
+                all_nonces.push(nonces);
+                all_commitments.push(commitments);
+            }
+
+            let signing_package = SigningPackage::new(&all_commitments, message).unwrap();
+
+            // Round 2 - generate shares honestly
+            let mut signature_shares = Vec::new();
+            for (i, signer) in signers.iter().enumerate() {
+                let share = signer
+                    .round2(message, &all_nonces[i], &signing_package)
+                    .unwrap();
+                signature_shares.push(share);
+            }
+
+            // Corrupt the first share by modifying its bytes
+            let mut corrupted_share = signature_shares[0].clone();
+            if !corrupted_share.bytes.is_empty() {
+                corrupted_share.bytes[0] ^= 0xFF; // Flip bits
+            }
+            signature_shares[0] = corrupted_share;
+
+            // Aggregation should fail with corrupted share
+            let group_key = GroupVerifyingKey::from_frost(pubkey_package.verifying_key()).unwrap();
+            let verifier = FrostVerifier::new(&group_key).unwrap();
+            let pkg = PublicKeyPackage::from_frost(pubkey_package);
+
+            let result = verifier.aggregate(&signing_package, &signature_shares, &pkg);
+            assert!(
+                result.is_err(),
+                "Aggregation must detect corrupted signature share"
+            );
+        }
+
+        /// Duplicate participant identifiers must be rejected.
+        /// The BTreeMap used internally deduplicates commitments by identifier,
+        /// so having duplicate signers effectively reduces the unique participant
+        /// count below threshold, causing the protocol to fail.
+        #[test]
+        fn test_frost_duplicate_participant_rejected() {
+            let threshold = 2u16;
+            let total = 5u16;
+            let message = b"duplicate participant test";
+
+            let (shares, pubkey_package) = trusted_dealer_keygen(threshold, total).unwrap();
+
+            // Create just one signer
+            let key_package = frost::keys::KeyPackage::try_from(shares[0].clone()).unwrap();
+            let signer = FrostSigner::new(key_package);
+
+            // Generate commitment once
+            let (nonces, commitments) = signer.round1().unwrap();
+
+            // Try to use the same commitment twice (duplicate participant)
+            // Note: BTreeMap will deduplicate these, resulting in only 1 unique commitment
+            let duplicate_commitments = vec![commitments.clone(), commitments.clone()];
+
+            let signing_package = SigningPackage::new(&duplicate_commitments, message).unwrap();
+
+            // Round2 should fail because we only have 1 unique signer (< threshold of 2)
+            let round2_result = signer.round2(message, &nonces, &signing_package);
+
+            // Either round2 fails (expected) or we continue to check aggregation
+            if let Ok(share) = round2_result {
+                let duplicate_shares = vec![share.clone(), share.clone()];
+
+                let group_key =
+                    GroupVerifyingKey::from_frost(pubkey_package.verifying_key()).unwrap();
+                let verifier = FrostVerifier::new(&group_key).unwrap();
+                let pkg = PublicKeyPackage::from_frost(pubkey_package);
+
+                // BTreeMap deduplicates, so aggregation should fail with insufficient unique shares
+                let result = verifier.aggregate(&signing_package, &duplicate_shares, &pkg);
+
+                if let Ok(signature) = result {
+                    // If somehow aggregation succeeded, verification must fail
+                    assert!(
+                        verifier.verify(message, &signature).is_err(),
+                        "Duplicate participant must not produce a valid signature"
+                    );
+                }
+                // Aggregation failure is the expected outcome
+            }
+            // Round2 failure is the expected outcome - security property is satisfied
+        }
+
+        /// Verify exact threshold succeeds across multiple configurations.
+        #[test]
+        fn test_frost_exact_threshold_multiple_configurations() {
+            for (threshold, total) in [(2u16, 3u16), (3u16, 5u16), (5u16, 10u16)] {
+                let message = b"configuration test";
+
+                let (shares, pubkey_package) = trusted_dealer_keygen(threshold, total).unwrap();
+
+                // Use exactly threshold participants
+                let key_packages: Vec<_> = shares
+                    .iter()
+                    .take(threshold as usize)
+                    .map(|s| frost::keys::KeyPackage::try_from(s.clone()).unwrap())
+                    .collect();
+
+                let signers: Vec<_> = key_packages
+                    .iter()
+                    .map(|kp| FrostSigner::new(kp.clone()))
+                    .collect();
+
+                // Round 1
+                let mut all_nonces = Vec::new();
+                let mut all_commitments = Vec::new();
+                for signer in &signers {
+                    let (nonces, commitments) = signer.round1().unwrap();
+                    all_nonces.push(nonces);
+                    all_commitments.push(commitments);
+                }
+
+                let signing_package = SigningPackage::new(&all_commitments, message).unwrap();
+
+                // Round 2
+                let mut signature_shares = Vec::new();
+                for (i, signer) in signers.iter().enumerate() {
+                    let share = signer
+                        .round2(message, &all_nonces[i], &signing_package)
+                        .unwrap();
+                    signature_shares.push(share);
+                }
+
+                // Aggregate and verify
+                let group_key =
+                    GroupVerifyingKey::from_frost(pubkey_package.verifying_key()).unwrap();
+                let verifier = FrostVerifier::new(&group_key).unwrap();
+                let pkg = PublicKeyPackage::from_frost(pubkey_package);
+
+                let signature = verifier
+                    .aggregate(&signing_package, &signature_shares, &pkg)
+                    .expect(&format!("{}-of-{}: aggregation must succeed", threshold, total));
+
+                assert!(
+                    verifier.verify(message, &signature).is_ok(),
+                    "{}-of-{}: verification must succeed",
+                    threshold,
+                    total
+                );
+            }
+        }
+
+        /// Signature for one message must not verify against another message.
+        #[test]
+        fn test_frost_signature_not_transferable() {
+            let threshold = 2u16;
+            let total = 3u16;
+            let message_a = b"message A";
+            let message_b = b"message B - different content";
+
+            let (shares, pubkey_package) = trusted_dealer_keygen(threshold, total).unwrap();
+
+            let key_packages: Vec<_> = shares
+                .iter()
+                .take(threshold as usize)
+                .map(|s| frost::keys::KeyPackage::try_from(s.clone()).unwrap())
+                .collect();
+
+            let signers: Vec<_> = key_packages
+                .iter()
+                .map(|kp| FrostSigner::new(kp.clone()))
+                .collect();
+
+            // Sign message A
+            let mut all_nonces = Vec::new();
+            let mut all_commitments = Vec::new();
+            for signer in &signers {
+                let (nonces, commitments) = signer.round1().unwrap();
+                all_nonces.push(nonces);
+                all_commitments.push(commitments);
+            }
+
+            let signing_package = SigningPackage::new(&all_commitments, message_a).unwrap();
+
+            let mut signature_shares = Vec::new();
+            for (i, signer) in signers.iter().enumerate() {
+                let share = signer
+                    .round2(message_a, &all_nonces[i], &signing_package)
+                    .unwrap();
+                signature_shares.push(share);
+            }
+
+            let group_key = GroupVerifyingKey::from_frost(pubkey_package.verifying_key()).unwrap();
+            let verifier = FrostVerifier::new(&group_key).unwrap();
+            let pkg = PublicKeyPackage::from_frost(pubkey_package);
+
+            let signature = verifier
+                .aggregate(&signing_package, &signature_shares, &pkg)
+                .unwrap();
+
+            // Signature for message_a must verify against message_a
+            assert!(
+                verifier.verify(message_a, &signature).is_ok(),
+                "Signature must verify against the signed message"
+            );
+
+            // Signature for message_a must NOT verify against message_b
+            assert!(
+                verifier.verify(message_b, &signature).is_err(),
+                "Signature must NOT verify against a different message"
+            );
+        }
+
+        /// More than threshold signers should also work (robustness).
+        #[test]
+        fn test_frost_more_than_threshold_succeeds() {
+            let threshold = 2u16;
+            let total = 5u16;
+            let message = b"more than threshold test";
+
+            let (shares, pubkey_package) = trusted_dealer_keygen(threshold, total).unwrap();
+
+            // Use all participants (more than threshold)
+            let key_packages: Vec<_> = shares
+                .iter()
+                .map(|s| frost::keys::KeyPackage::try_from(s.clone()).unwrap())
+                .collect();
+
+            let signers: Vec<_> = key_packages
+                .iter()
+                .map(|kp| FrostSigner::new(kp.clone()))
+                .collect();
+
+            // Round 1
+            let mut all_nonces = Vec::new();
+            let mut all_commitments = Vec::new();
+            for signer in &signers {
+                let (nonces, commitments) = signer.round1().unwrap();
+                all_nonces.push(nonces);
+                all_commitments.push(commitments);
+            }
+
+            let signing_package = SigningPackage::new(&all_commitments, message).unwrap();
+
+            // Round 2
+            let mut signature_shares = Vec::new();
+            for (i, signer) in signers.iter().enumerate() {
+                let share = signer
+                    .round2(message, &all_nonces[i], &signing_package)
+                    .unwrap();
+                signature_shares.push(share);
+            }
+
+            let group_key = GroupVerifyingKey::from_frost(pubkey_package.verifying_key()).unwrap();
+            let verifier = FrostVerifier::new(&group_key).unwrap();
+            let pkg = PublicKeyPackage::from_frost(pubkey_package);
+
+            let signature = verifier
+                .aggregate(&signing_package, &signature_shares, &pkg)
+                .expect("Aggregation with more than threshold must succeed");
+
+            assert!(
+                verifier.verify(message, &signature).is_ok(),
+                "Verification with more than threshold must succeed"
+            );
+        }
+
+        /// Empty message should still be signable and verifiable.
+        #[test]
+        fn test_frost_empty_message() {
+            let threshold = 2u16;
+            let total = 3u16;
+            let message = b"";
+
+            let (shares, pubkey_package) = trusted_dealer_keygen(threshold, total).unwrap();
+
+            let key_packages: Vec<_> = shares
+                .iter()
+                .take(threshold as usize)
+                .map(|s| frost::keys::KeyPackage::try_from(s.clone()).unwrap())
+                .collect();
+
+            let signers: Vec<_> = key_packages
+                .iter()
+                .map(|kp| FrostSigner::new(kp.clone()))
+                .collect();
+
+            let mut all_nonces = Vec::new();
+            let mut all_commitments = Vec::new();
+            for signer in &signers {
+                let (nonces, commitments) = signer.round1().unwrap();
+                all_nonces.push(nonces);
+                all_commitments.push(commitments);
+            }
+
+            let signing_package = SigningPackage::new(&all_commitments, message).unwrap();
+
+            let mut signature_shares = Vec::new();
+            for (i, signer) in signers.iter().enumerate() {
+                let share = signer
+                    .round2(message, &all_nonces[i], &signing_package)
+                    .unwrap();
+                signature_shares.push(share);
+            }
+
+            let group_key = GroupVerifyingKey::from_frost(pubkey_package.verifying_key()).unwrap();
+            let verifier = FrostVerifier::new(&group_key).unwrap();
+            let pkg = PublicKeyPackage::from_frost(pubkey_package);
+
+            let signature = verifier
+                .aggregate(&signing_package, &signature_shares, &pkg)
+                .expect("Empty message signing must succeed");
+
+            assert!(
+                verifier.verify(message, &signature).is_ok(),
+                "Empty message verification must succeed"
+            );
+        }
     }
 }

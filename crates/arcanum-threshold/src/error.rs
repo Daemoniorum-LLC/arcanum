@@ -1,5 +1,8 @@
 //! Error types for threshold cryptography operations.
 
+#[cfg(not(feature = "std"))]
+use alloc::string::String;
+
 use thiserror::Error;
 
 /// Errors that can occur in threshold operations.
@@ -107,4 +110,4 @@ pub enum ThresholdError {
 }
 
 /// Result type for threshold operations.
-pub type Result<T> = std::result::Result<T, ThresholdError>;
+pub type Result<T> = core::result::Result<T, ThresholdError>;

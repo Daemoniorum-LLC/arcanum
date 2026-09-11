@@ -1,0 +1,158 @@
+# Feature Matrix Tests
+# Tests various feature flag combinations to ensure non-default features are exercised
+# Implements Phase 5.7: Feature-flag test coverage in CI
+
+name: Feature Matrix Tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  feature-tests:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # All features combined
+          - name: "All features"
+            args: "--workspace --all-features"
+
+          # Signature algorithm variants
+          - name: "Schnorr signatures"
+            args: "-p arcanum-signatures --features schnorr"
+
+          - name: "Ed25519 signatures"
+            args: "-p arcanum-signatures --features ed25519"
+
+          - name: "ECDSA signatures"
+            args: "-p arcanum-signatures --features ecdsa"
+
+          - name: "All signature algorithms"
+            args: "-p arcanum-signatures --features all"
+
+          # Post-quantum features
+          - name: "ML-KEM (default PQC)"
+            args: "-p arcanum-pqc --features ml-kem"
+
+          - name: "ML-DSA"
+            args: "-p arcanum-pqc --features ml-dsa"
+
+          - name: "ML-DSA native"
+            args: "-p arcanum-pqc --features ml-dsa-native"
+
+          - name: "SLH-DSA"
+            args: "-p arcanum-pqc --features slh-dsa"
+
+          - name: "All PQC algorithms"
+            args: "-p arcanum-pqc --features all"
+
+          # Symmetric cipher variants
+          - name: "AES ciphers"
+            args: "-p arcanum-symmetric --features aes"
+
+          - name: "ChaCha ciphers"
+            args: "-p arcanum-symmetric --features chacha"
+
+          # Asymmetric features
+          - name: "X25519 key exchange"
+            args: "-p arcanum-asymmetric --features x25519"
+
+          - name: "X448 key exchange"
+            args: "-p arcanum-asymmetric --features x448"
+
+          - name: "RSA encryption"
+            args: "-p arcanum-asymmetric --features rsa"
+
+          - name: "ECIES encryption"
+            args: "-p arcanum-asymmetric --features ecies"
+
+          # no_std compatibility
+          - name: "Core: no_std + alloc"
+            args: "-p arcanum-core --no-default-features --features alloc"
+
+          - name: "Hash: no_std + alloc"
+            args: "-p arcanum-hash --no-default-features --features alloc"
+
+          # ZKP features
+          - name: "ZKP: Bulletproofs"
+            args: "-p arcanum-zkp --features bulletproofs"
+
+          - name: "ZKP: Schnorr proofs"
+            args: "-p arcanum-zkp --features schnorr-proofs"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-feature-matrix-${{ matrix.name }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-feature-matrix-${{ matrix.name }}-
+            ${{ runner.os }}-feature-matrix-
+
+      - name: Run tests
+        run: cargo test ${{ matrix.args }}
+
+  # Verify feature combinations compile
+  feature-check:
+    name: Check ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Minimal features (potential breakage surface)
+          - name: "Minimal: arcanum-core only"
+            args: "-p arcanum-core --no-default-features"
+
+          - name: "Core with encoding"
+            args: "-p arcanum-core --no-default-features --features encoding"
+
+          # Combined feature stress tests
+          - name: "Signatures + PQC combined"
+            args: "-p arcanum-signatures -p arcanum-pqc --all-features"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Check compilation
+        run: cargo check ${{ matrix.args }}
+
+  # Ensure no_std targets compile
+  no-std-check:
+    name: no_std Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: thumbv7em-none-eabihf
+
+      - name: Check no_std compilation (arcanum-core)
+        run: cargo check -p arcanum-core --no-default-features --features alloc --target thumbv7em-none-eabihf
+
+      - name: Check no_std compilation (arcanum-hash)
+        run: cargo check -p arcanum-hash --no-default-features --features alloc --target thumbv7em-none-eabihf

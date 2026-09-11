@@ -8,19 +8,15 @@ repository.workspace = true
 authors.workspace = true
 rust-version.workspace = true
 keywords = ["cryptography", "hash", "sha", "blake3", "argon2"]
-categories = ["cryptography"]
+categories = ["cryptography", "no-std"]
 
 [features]
-default = ["std", "backend-native", "sha2", "sha3", "blake3", "kdf", "hardware-accel"]
+default = ["std", "backend-native", "sha2", "sha3", "blake3", "kdf"]
 std = []
+alloc = []  # For Vec, String without full std
 
 # Backend selection - choose implementation strategy
 backend-native = ["dep:arcanum-primitives"]  # Use native Arcanum primitives (recommended)
-backend-rustcrypto = []                       # Use RustCrypto crates (legacy)
-
-# Hardware acceleration for SHA-2 (SHA-NI, ARMv8 SHA extensions)
-# Enabled by default for maximum performance
-hardware-accel = []
 
 # Hash algorithm families
 sha2 = ["dep:sha2"]
@@ -36,13 +32,12 @@ kdf = ["argon2", "hkdf", "scrypt"]
 argon2 = ["dep:argon2"]
 hkdf = ["dep:hkdf"]
 scrypt = ["dep:scrypt"]
-pbkdf2 = ["dep:pbkdf2"]
 
 # Message authentication codes
 mac = ["dep:hmac"]
 
 # Enable all features
-all = ["sha2", "sha3", "blake2", "blake3", "kdf", "pbkdf2", "mac"]
+all = ["sha2", "sha3", "blake2", "blake3", "kdf", "mac"]
 
 # For comparative benchmarks against ring
 bench-ring = ["dep:ring"]
@@ -65,7 +60,6 @@ blake3 = { workspace = true, optional = true }
 argon2 = { workspace = true, optional = true }
 hkdf = { workspace = true, optional = true }
 scrypt = { workspace = true, optional = true }
-pbkdf2 = { workspace = true, optional = true }
 
 # MACs
 hmac = { workspace = true, optional = true }

@@ -35,6 +35,7 @@ impl MlDsa65SigningKey {
     pub const SIZE: usize = 4032;
 
     /// Create from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() != Self::SIZE {
             return Err(Error::InvalidKeyLength {
@@ -75,6 +76,7 @@ impl MlDsa65VerifyingKey {
     pub const SIZE: usize = 1952;
 
     /// Create from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() != Self::SIZE {
             return Err(Error::InvalidKeyLength {
@@ -124,6 +126,7 @@ impl MlDsa65Signature {
     pub const SIZE: usize = 3309;
 
     /// Create from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() != Self::SIZE {
             return Err(Error::InvalidSignature);
@@ -233,6 +236,7 @@ impl MlDsa44Ops {
     }
 
     /// Sign a message.
+    #[must_use = "signing can fail; check the Result"]
     pub fn sign(sk_bytes: &[u8], message: &[u8]) -> Result<Vec<u8>> {
         let arr: [u8; 2560] = sk_bytes.try_into().map_err(|_| Error::InvalidKeyFormat)?;
         let sk = ml_dsa::SigningKey::<MlDsa44Inner>::from_expanded(&arr.into());
@@ -242,6 +246,7 @@ impl MlDsa44Ops {
     }
 
     /// Verify a signature.
+    #[must_use = "verification result must be checked"]
     pub fn verify(vk_bytes: &[u8], message: &[u8], sig_bytes: &[u8]) -> Result<()> {
         let vk_arr: [u8; 1312] = vk_bytes.try_into().map_err(|_| Error::InvalidKeyFormat)?;
         let vk = ml_dsa::VerifyingKey::<MlDsa44Inner>::decode(&vk_arr.into());
@@ -285,6 +290,7 @@ impl MlDsa87Ops {
     }
 
     /// Sign a message.
+    #[must_use = "signing can fail; check the Result"]
     pub fn sign(sk_bytes: &[u8], message: &[u8]) -> Result<Vec<u8>> {
         let arr: [u8; 4896] = sk_bytes.try_into().map_err(|_| Error::InvalidKeyFormat)?;
         let sk = ml_dsa::SigningKey::<MlDsa87Inner>::from_expanded(&arr.into());
@@ -294,6 +300,7 @@ impl MlDsa87Ops {
     }
 
     /// Verify a signature.
+    #[must_use = "verification result must be checked"]
     pub fn verify(vk_bytes: &[u8], message: &[u8], sig_bytes: &[u8]) -> Result<()> {
         let vk_arr: [u8; 2592] = vk_bytes.try_into().map_err(|_| Error::InvalidKeyFormat)?;
         let vk = ml_dsa::VerifyingKey::<MlDsa87Inner>::decode(&vk_arr.into());

@@ -3,6 +3,9 @@
 //! Prove properties about sealed data without revealing it.
 //! Uses Bulletproof range proofs and Schnorr proofs.
 
+#[cfg(not(feature = "std"))]
+use alloc::{format, string::String, vec::Vec};
+
 use crate::errors::{HoloCryptError, HoloCryptResult};
 use serde::{Deserialize, Serialize};
 

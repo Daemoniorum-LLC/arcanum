@@ -32,6 +32,11 @@
 //! assert!(result.is_constant_time());
 //! ```
 
+#[cfg(not(feature = "std"))]
+use alloc::{format, string::String, vec, vec::Vec};
+
+use core::cmp::Ordering;
+
 use crate::errors::{VerifyError, VerifyResult};
 use crate::stats;
 
@@ -167,8 +172,8 @@ impl TimingResult {
     }
 }
 
-impl std::fmt::Display for TimingResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for TimingResult {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.summary())
     }
 }
@@ -283,7 +288,7 @@ impl TimingTest {
             return;
         }
 
-        samples.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        samples.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
 
         let n = samples.len();
         let low_idx = ((n as f64 * self.percentile_crop.low / 100.0) as usize).min(n / 2);
@@ -296,6 +301,7 @@ impl TimingTest {
     ///
     /// The function `f` should take a `Class` and return some result.
     /// Timing measurements are taken for both classes and compared.
+    #[cfg(feature = "std")]
     pub fn run<F, R>(self, mut f: F) -> TimingResult
     where
         F: FnMut(Class) -> R,
@@ -315,13 +321,13 @@ impl TimingTest {
         for _ in 0..self.iterations {
             // Measure left class
             let start = Instant::now();
-            let _result = std::hint::black_box(f(Class::Left));
+            let _result = core::hint::black_box(f(Class::Left));
             let elapsed = start.elapsed().as_nanos() as f64;
             left_times.push(elapsed);
 
             // Measure right class
             let start = Instant::now();
-            let _result = std::hint::black_box(f(Class::Right));
+            let _result = core::hint::black_box(f(Class::Right));
             let elapsed = start.elapsed().as_nanos() as f64;
             right_times.push(elapsed);
         }
@@ -364,6 +370,7 @@ impl TimingTest {
     }
 
     /// Run with online statistics (memory-efficient for large iterations).
+    #[cfg(feature = "std")]
     pub fn run_online<F, R>(self, mut f: F) -> TimingResult
     where
         F: FnMut(Class) -> R,
@@ -383,13 +390,13 @@ impl TimingTest {
         for _ in 0..self.iterations {
             // Measure left class
             let start = Instant::now();
-            let _result = std::hint::black_box(f(Class::Left));
+            let _result = core::hint::black_box(f(Class::Left));
             let elapsed = start.elapsed().as_nanos() as f64;
             left_stats.update(elapsed);
 
             // Measure right class
             let start = Instant::now();
-            let _result = std::hint::black_box(f(Class::Right));
+            let _result = core::hint::black_box(f(Class::Right));
             let elapsed = start.elapsed().as_nanos() as f64;
             right_stats.update(elapsed);
         }
@@ -414,6 +421,7 @@ impl TimingTest {
 }
 
 /// Run a timing test and return an error if a leak is detected.
+#[cfg(feature = "std")]
 pub fn assert_constant_time<F, R>(name: &str, iterations: usize, f: F) -> VerifyResult<()>
 where
     F: FnMut(Class) -> R,
@@ -431,6 +439,7 @@ where
 }
 
 /// Common test patterns for cryptographic operations.
+#[cfg(feature = "std")]
 pub mod patterns {
     use super::*;
 
@@ -510,7 +519,7 @@ pub mod patterns {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
 
@@ -525,7 +534,7 @@ mod tests {
                     Class::Right => u64::MAX,
                 };
                 // Simple addition is constant-time
-                std::hint::black_box(a.wrapping_add(42))
+                core::hint::black_box(a.wrapping_add(42))
             });
 
         // Should pass (t-value close to 0)

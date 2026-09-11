@@ -7,6 +7,9 @@
 //! - **P-384 (secp384r1)**: Higher security level
 //! - **secp256k1**: Bitcoin/Ethereum curve
 
+#[cfg(not(feature = "std"))]
+use alloc::{string::String, vec::Vec};
+
 use crate::traits;
 use arcanum_core::error::{Error, Result};
 use rand::rngs::OsRng;
@@ -67,8 +70,8 @@ impl traits::SigningKey for P256SigningKey {
     }
 }
 
-impl std::fmt::Debug for P256SigningKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for P256SigningKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "P256SigningKey([REDACTED])")
     }
 }
@@ -88,7 +91,7 @@ mod p256_verifying_key_serde {
     pub fn serialize<S>(
         key: &p256::ecdsa::VerifyingKey,
         serializer: S,
-    ) -> std::result::Result<S::Ok, S::Error>
+    ) -> core::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -102,7 +105,7 @@ mod p256_verifying_key_serde {
 
     pub fn deserialize<'de, D>(
         deserializer: D,
-    ) -> std::result::Result<p256::ecdsa::VerifyingKey, D::Error>
+    ) -> core::result::Result<p256::ecdsa::VerifyingKey, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -149,8 +152,8 @@ impl traits::VerifyingKey for P256VerifyingKey {
     }
 }
 
-impl std::fmt::Debug for P256VerifyingKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for P256VerifyingKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         use traits::VerifyingKey;
         write!(f, "P256VerifyingKey({})", self.to_hex())
     }
@@ -171,7 +174,7 @@ mod p256_signature_serde {
     pub fn serialize<S>(
         sig: &p256::ecdsa::Signature,
         serializer: S,
-    ) -> std::result::Result<S::Ok, S::Error>
+    ) -> core::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -185,7 +188,7 @@ mod p256_signature_serde {
 
     pub fn deserialize<'de, D>(
         deserializer: D,
-    ) -> std::result::Result<p256::ecdsa::Signature, D::Error>
+    ) -> core::result::Result<p256::ecdsa::Signature, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -215,8 +218,8 @@ impl traits::Signature for P256Signature {
     }
 }
 
-impl std::fmt::Debug for P256Signature {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for P256Signature {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         use traits::Signature;
         write!(f, "P256Signature({})", self.to_hex())
     }
@@ -276,8 +279,8 @@ impl traits::SigningKey for P384SigningKey {
     }
 }
 
-impl std::fmt::Debug for P384SigningKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for P384SigningKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "P384SigningKey([REDACTED])")
     }
 }
@@ -320,8 +323,8 @@ impl traits::VerifyingKey for P384VerifyingKey {
     }
 }
 
-impl std::fmt::Debug for P384VerifyingKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for P384VerifyingKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         use traits::VerifyingKey;
         write!(f, "P384VerifyingKey({})", self.to_hex())
     }
@@ -348,8 +351,8 @@ impl traits::Signature for P384Signature {
     }
 }
 
-impl std::fmt::Debug for P384Signature {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for P384Signature {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         use traits::Signature;
         write!(f, "P384Signature({})", self.to_hex())
     }
@@ -409,8 +412,8 @@ impl traits::SigningKey for Secp256k1SigningKey {
     }
 }
 
-impl std::fmt::Debug for Secp256k1SigningKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Secp256k1SigningKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Secp256k1SigningKey([REDACTED])")
     }
 }
@@ -430,7 +433,7 @@ mod secp256k1_verifying_key_serde {
     pub fn serialize<S>(
         key: &k256::ecdsa::VerifyingKey,
         serializer: S,
-    ) -> std::result::Result<S::Ok, S::Error>
+    ) -> core::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -444,7 +447,7 @@ mod secp256k1_verifying_key_serde {
 
     pub fn deserialize<'de, D>(
         deserializer: D,
-    ) -> std::result::Result<k256::ecdsa::VerifyingKey, D::Error>
+    ) -> core::result::Result<k256::ecdsa::VerifyingKey, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -491,8 +494,8 @@ impl traits::VerifyingKey for Secp256k1VerifyingKey {
     }
 }
 
-impl std::fmt::Debug for Secp256k1VerifyingKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Secp256k1VerifyingKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         use traits::VerifyingKey;
         write!(f, "Secp256k1VerifyingKey({})", self.to_hex())
     }
@@ -513,7 +516,7 @@ mod secp256k1_signature_serde {
     pub fn serialize<S>(
         sig: &k256::ecdsa::Signature,
         serializer: S,
-    ) -> std::result::Result<S::Ok, S::Error>
+    ) -> core::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -527,7 +530,7 @@ mod secp256k1_signature_serde {
 
     pub fn deserialize<'de, D>(
         deserializer: D,
-    ) -> std::result::Result<k256::ecdsa::Signature, D::Error>
+    ) -> core::result::Result<k256::ecdsa::Signature, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -557,8 +560,8 @@ impl traits::Signature for Secp256k1Signature {
     }
 }
 
-impl std::fmt::Debug for Secp256k1Signature {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Debug for Secp256k1Signature {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         use traits::Signature;
         write!(f, "Secp256k1Signature({})", self.to_hex())
     }

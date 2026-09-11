@@ -5,7 +5,10 @@
 use arcanum_core::error::{Error, Result};
 use hmac::{Hmac as HmacInner, Mac};
 use sha2::{Sha256, Sha384, Sha512};
-use std::marker::PhantomData;
+use core::marker::PhantomData;
+
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
 
 /// HMAC message authentication code.
 pub struct Hmac<H> {
@@ -34,6 +37,7 @@ impl Hmac<Sha256> {
     }
 
     /// Verify HMAC.
+    #[must_use = "verification result must be checked"]
     pub fn verify(key: &[u8], data: &[u8], tag: &[u8]) -> Result<()> {
         let mut mac =
             HmacInner::<Sha256>::new_from_slice(key).expect("HMAC can take key of any size");
@@ -66,6 +70,7 @@ impl Hmac<Sha384> {
     }
 
     /// Verify HMAC.
+    #[must_use = "verification result must be checked"]
     pub fn verify(key: &[u8], data: &[u8], tag: &[u8]) -> Result<()> {
         let mut mac =
             HmacInner::<Sha384>::new_from_slice(key).expect("HMAC can take key of any size");
@@ -90,6 +95,7 @@ impl Hmac<Sha512> {
     }
 
     /// Verify HMAC.
+    #[must_use = "verification result must be checked"]
     pub fn verify(key: &[u8], data: &[u8], tag: &[u8]) -> Result<()> {
         let mut mac =
             HmacInner::<Sha512>::new_from_slice(key).expect("HMAC can take key of any size");

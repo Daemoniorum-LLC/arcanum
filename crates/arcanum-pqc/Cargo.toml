@@ -8,7 +8,7 @@ repository.workspace = true
 authors.workspace = true
 rust-version.workspace = true
 keywords = ["cryptography", "post-quantum", "kyber", "dilithium", "sphincs"]
-categories = ["cryptography"]
+categories = ["cryptography", "no-std"]
 
 [features]
 # Note: ml-dsa is excluded from default until it has a stable release

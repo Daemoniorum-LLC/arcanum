@@ -3,12 +3,18 @@
 //! This module provides wrappers around the operating system's CSPRNG
 //! and additional utilities for generating random cryptographic values.
 
+#[cfg(feature = "std")]
 use crate::error::{Error, Result};
-use rand::{CryptoRng as RandCryptoRng, RngCore, SeedableRng};
+use rand::{CryptoRng as RandCryptoRng, RngCore};
+#[cfg(feature = "std")]
+use rand::SeedableRng;
+#[cfg(feature = "std")]
 use rand_chacha::ChaCha20Rng;
+#[cfg(feature = "std")]
 use std::sync::Mutex;
 
 // Re-export for convenience
+#[cfg(feature = "std")]
 pub use rand::rngs::OsRng;
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -26,6 +32,7 @@ impl<T: RandCryptoRng + RngCore> CryptoRng for T {}
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /// Generate random bytes using the OS CSPRNG.
+#[cfg(feature = "std")]
 pub fn random_bytes(len: usize) -> Vec<u8> {
     let mut buf = vec![0u8; len];
     OsRng.fill_bytes(&mut buf);
@@ -33,6 +40,7 @@ pub fn random_bytes(len: usize) -> Vec<u8> {
 }
 
 /// Generate a random array of fixed size.
+#[cfg(feature = "std")]
 pub fn random_array<const N: usize>() -> [u8; N] {
     let mut buf = [0u8; N];
     OsRng.fill_bytes(&mut buf);
@@ -40,6 +48,7 @@ pub fn random_array<const N: usize>() -> [u8; N] {
 }
 
 /// Generate a random u64.
+#[cfg(feature = "std")]
 pub fn random_u64() -> u64 {
     let mut buf = [0u8; 8];
     OsRng.fill_bytes(&mut buf);
@@ -47,6 +56,7 @@ pub fn random_u64() -> u64 {
 }
 
 /// Generate a random u32.
+#[cfg(feature = "std")]
 pub fn random_u32() -> u32 {
     let mut buf = [0u8; 4];
     OsRng.fill_bytes(&mut buf);
@@ -54,6 +64,7 @@ pub fn random_u32() -> u32 {
 }
 
 /// Generate a random u128.
+#[cfg(feature = "std")]
 pub fn random_u128() -> u128 {
     let mut buf = [0u8; 16];
     OsRng.fill_bytes(&mut buf);
@@ -61,6 +72,7 @@ pub fn random_u128() -> u128 {
 }
 
 /// Generate a random value in range [0, max).
+#[cfg(feature = "std")]
 pub fn random_range(max: u64) -> u64 {
     if max == 0 {
         return 0;
@@ -77,6 +89,8 @@ pub fn random_range(max: u64) -> u64 {
 }
 
 /// Fill a buffer with random bytes, returning an error on failure.
+#[cfg(feature = "std")]
+#[must_use = "random generation can fail; check the Result"]
 pub fn try_fill_bytes(dest: &mut [u8]) -> Result<()> {
     getrandom::getrandom(dest).map_err(|_| Error::RngFailed)
 }
@@ -89,10 +103,12 @@ pub fn try_fill_bytes(dest: &mut [u8]) -> Result<()> {
 ///
 /// **WARNING**: This is NOT cryptographically secure for production use.
 /// Only use this for testing where reproducibility is needed.
+#[cfg(feature = "std")]
 pub struct DeterministicRng {
     inner: ChaCha20Rng,
 }
 
+#[cfg(feature = "std")]
 impl DeterministicRng {
     /// Create a new deterministic RNG from a seed.
     pub fn from_seed(seed: [u8; 32]) -> Self {
@@ -109,6 +125,7 @@ impl DeterministicRng {
     }
 }
 
+#[cfg(feature = "std")]
 impl RngCore for DeterministicRng {
     fn next_u32(&mut self) -> u32 {
         self.inner.next_u32()
@@ -122,7 +139,7 @@ impl RngCore for DeterministicRng {
         self.inner.fill_bytes(dest)
     }
 
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> std::result::Result<(), rand::Error> {
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), rand::Error> {
         self.inner.try_fill_bytes(dest)
     }
 }
@@ -137,10 +154,12 @@ impl RngCore for DeterministicRng {
 ///
 /// This uses ChaCha20 seeded from OsRng, providing fast random generation
 /// while maintaining cryptographic security.
+#[cfg(feature = "std")]
 pub struct ThreadLocalRng {
     rng: Mutex<ChaCha20Rng>,
 }
 
+#[cfg(feature = "std")]
 impl ThreadLocalRng {
     /// Create a new thread-local RNG.
     pub fn new() -> Self {
@@ -183,6 +202,7 @@ impl ThreadLocalRng {
     }
 }
 
+#[cfg(feature = "std")]
 impl Default for ThreadLocalRng {
     fn default() -> Self {
         Self::new()
@@ -190,11 +210,13 @@ impl Default for ThreadLocalRng {
 }
 
 // Thread-local instance
+#[cfg(feature = "std")]
 thread_local! {
     static THREAD_RNG: ThreadLocalRng = ThreadLocalRng::new();
 }
 
 /// Get random bytes using the thread-local RNG.
+#[cfg(feature = "std")]
 pub fn thread_random_bytes(len: usize) -> Vec<u8> {
     let mut buf = vec![0u8; len];
     THREAD_RNG.with(|rng| rng.fill_bytes(&mut buf));
@@ -202,6 +224,7 @@ pub fn thread_random_bytes(len: usize) -> Vec<u8> {
 }
 
 /// Get a random array using the thread-local RNG.
+#[cfg(feature = "std")]
 pub fn thread_random_array<const N: usize>() -> [u8; N] {
     THREAD_RNG.with(|rng| rng.random_array())
 }
@@ -213,6 +236,7 @@ pub fn thread_random_array<const N: usize>() -> [u8; N] {
 /// Mix additional entropy into a seed.
 ///
 /// Uses HKDF-like construction to mix multiple entropy sources.
+#[cfg(feature = "std")]
 pub fn mix_entropy(sources: &[&[u8]]) -> [u8; 32] {
     use blake3::Hasher;
 
@@ -244,11 +268,13 @@ pub fn mix_entropy(sources: &[&[u8]]) -> [u8; 32] {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /// Generate a random identifier as a hex string.
+#[cfg(all(feature = "std", feature = "encoding"))]
 pub fn random_id(bytes: usize) -> String {
     hex::encode(random_bytes(bytes))
 }
 
 /// Generate a random alphanumeric string.
+#[cfg(feature = "std")]
 pub fn random_alphanumeric(len: usize) -> String {
     const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
@@ -261,11 +287,12 @@ pub fn random_alphanumeric(len: usize) -> String {
 }
 
 /// Generate a random base64url-safe string (suitable for tokens).
+#[cfg(all(feature = "std", feature = "encoding"))]
 pub fn random_token(bytes: usize) -> String {
     <base64ct::Base64UrlUnpadded as base64ct::Encoding>::encode_string(&random_bytes(bytes))
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
 
@@ -320,6 +347,7 @@ mod tests {
         assert_ne!(mixed1, mixed2);
     }
 
+    #[cfg(feature = "encoding")]
     #[test]
     fn test_random_id() {
         let id = random_id(16);

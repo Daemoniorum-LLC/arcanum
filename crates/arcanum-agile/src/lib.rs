@@ -61,9 +61,13 @@
 //! - Batch migration pipelines
 //! - Progress tracking and rollback
 
+#![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]
 #![allow(clippy::op_ref)]
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
 
 #[cfg(feature = "registry")]
 pub mod registry;

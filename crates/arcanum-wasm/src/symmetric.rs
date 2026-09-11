@@ -27,6 +27,7 @@ impl AesGcm {
     /// # Errors
     ///
     /// Returns `CryptoError` with code "INVALID_KEY" if key length is not 32 bytes.
+    #[must_use = "construction can fail; check the Result"]
     #[wasm_bindgen(constructor)]
     pub fn new(key: &[u8]) -> Result<AesGcm, CryptoError> {
         if key.len() != 32 {
@@ -53,6 +54,7 @@ impl AesGcm {
     /// # Returns
     ///
     /// Ciphertext with 16-byte authentication tag appended.
+    #[must_use = "encryption can fail; check the Result"]
     #[wasm_bindgen]
     pub fn encrypt(
         &self,
@@ -97,6 +99,7 @@ impl AesGcm {
     /// # Errors
     ///
     /// Returns `CryptoError` with code "DECRYPTION_FAILED" if authentication fails.
+    #[must_use = "decryption can fail; check the Result"]
     #[wasm_bindgen]
     pub fn decrypt(
         &self,
@@ -162,6 +165,7 @@ impl ChaCha20Poly1305 {
     /// # Errors
     ///
     /// Returns `CryptoError` with code "INVALID_KEY" if key length is not 32 bytes.
+    #[must_use = "construction can fail; check the Result"]
     #[wasm_bindgen(constructor)]
     pub fn new(key: &[u8]) -> Result<ChaCha20Poly1305, CryptoError> {
         if key.len() != 32 {
@@ -198,6 +202,7 @@ impl ChaCha20Poly1305 {
     /// # Returns
     ///
     /// Ciphertext with 16-byte Poly1305 authentication tag appended.
+    #[must_use = "encryption can fail; check the Result"]
     #[wasm_bindgen]
     pub fn encrypt(
         &self,
@@ -259,6 +264,7 @@ impl ChaCha20Poly1305 {
     /// # Errors
     ///
     /// Returns `CryptoError` with code "DECRYPTION_FAILED" if authentication fails.
+    #[must_use = "decryption can fail; check the Result"]
     #[wasm_bindgen]
     pub fn decrypt(
         &self,

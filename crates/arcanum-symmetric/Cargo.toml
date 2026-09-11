@@ -8,27 +8,21 @@ repository.workspace = true
 authors.workspace = true
 rust-version.workspace = true
 keywords = ["cryptography", "encryption", "aes", "chacha20"]
-categories = ["cryptography"]
+categories = ["cryptography", "no-std"]
 
 [features]
-default = ["std", "backend-native", "aes", "chacha20", "hardware-accel"]
+default = ["std", "backend-native", "aes", "chacha20"]
 std = []
+alloc = []  # For Vec, String without full std
 
 # Backend selection - choose implementation strategy
 backend-native = ["dep:arcanum-primitives"]  # Use native Arcanum primitives (recommended)
-backend-rustcrypto = []                       # Use RustCrypto crates (legacy)
-
-# Hardware acceleration (AES-NI, SHA extensions) - enabled by default
-# On x86/x86_64, this uses AES-NI instructions when available (runtime detection)
-# On ARM, this uses ARMv8 cryptography extensions when available
-hardware-accel = []
 
 # Algorithm families
 aes = ["dep:aes", "dep:aes-gcm", "dep:aes-gcm-siv", "dep:ctr"]
 chacha20 = ["dep:chacha20", "dep:chacha20poly1305"]
 xchacha20 = ["chacha20"]
-legacy = ["dep:blowfish", "dep:twofish", "dep:cast5"]
-all = ["aes", "chacha20", "xchacha20", "legacy"]
+all = ["aes", "chacha20", "xchacha20"]
 
 # For comparative benchmarks against ring
 bench-ring = ["dep:ring"]
@@ -46,11 +40,6 @@ ctr = { workspace = true, optional = true }
 # ChaCha20 family
 chacha20 = { workspace = true, optional = true }
 chacha20poly1305 = { workspace = true, optional = true }
-
-# Legacy algorithms (for compatibility)
-blowfish = { workspace = true, optional = true }
-twofish = { workspace = true, optional = true }
-cast5 = { workspace = true, optional = true }
 
 # Core traits
 cipher = { workspace = true }

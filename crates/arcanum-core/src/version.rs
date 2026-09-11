@@ -1,7 +1,11 @@
 //! Version information and compatibility checking.
 
+#[cfg(not(feature = "std"))]
+use alloc::string::String;
+
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use core::fmt;
 
 /// Arcanum library version.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -10,7 +14,8 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 ///
 /// Used to ensure forward/backward compatibility when deserializing
 /// encrypted data or cryptographic structures.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Version {
     /// Major version (breaking changes)
     pub major: u16,
@@ -87,16 +92,16 @@ impl Default for Version {
 }
 
 impl PartialOrd for Version {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl Ord for Version {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         match self.major.cmp(&other.major) {
-            std::cmp::Ordering::Equal => match self.minor.cmp(&other.minor) {
-                std::cmp::Ordering::Equal => self.patch.cmp(&other.patch),
+            core::cmp::Ordering::Equal => match self.minor.cmp(&other.minor) {
+                core::cmp::Ordering::Equal => self.patch.cmp(&other.patch),
                 other => other,
             },
             other => other,
@@ -105,7 +110,8 @@ impl Ord for Version {
 }
 
 /// Protocol/format identifier with version.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ProtocolId {
     /// Protocol name.
     pub name: String,
@@ -135,7 +141,8 @@ impl fmt::Display for ProtocolId {
 }
 
 /// Algorithm identifier with version.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct AlgorithmId {
     /// Algorithm name (e.g., "AES-256-GCM", "Ed25519")
     pub name: String,
@@ -194,6 +201,8 @@ impl fmt::Display for AlgorithmId {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(not(feature = "std"))]
+    use alloc::string::ToString;
 
     #[test]
     fn test_version_comparison() {

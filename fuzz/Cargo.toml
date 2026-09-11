@@ -19,7 +19,11 @@ arcanum-symmetric = { path = "../crates/arcanum-symmetric" }
 arcanum-asymmetric = { path = "../crates/arcanum-asymmetric" }
 arcanum-signatures = { path = "../crates/arcanum-signatures" }
 arcanum-hash = { path = "../crates/arcanum-hash" }
+arcanum-threshold = { path = "../crates/arcanum-threshold" }
 arcanum-pqc = { path = "../crates/arcanum-pqc", features = ["ml-dsa", "ml-kem"] }
+
+# For FROST fuzz target
+frost-ed25519 = "2.1.0"
 
 # Fuzz targets for AEAD
 [[bin]]
@@ -80,6 +84,66 @@ bench = false
 [[bin]]
 name = "fuzz_p256"
 path = "fuzz_targets/fuzz_p256.rs"
+test = false
+doc = false
+bench = false
+
+# Fuzz targets for threshold cryptography
+[[bin]]
+name = "fuzz_shamir"
+path = "fuzz_targets/fuzz_shamir.rs"
+test = false
+doc = false
+bench = false
+
+# Fuzz targets for encoding
+[[bin]]
+name = "fuzz_encoding"
+path = "fuzz_targets/fuzz_encoding.rs"
+test = false
+doc = false
+bench = false
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Phase 5.8: New fuzz targets
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# XChaCha20-Poly1305 (extended nonce with HChaCha20)
+[[bin]]
+name = "fuzz_xchacha20poly1305"
+path = "fuzz_targets/fuzz_xchacha20poly1305.rs"
+test = false
+doc = false
+bench = false
+
+# AES-256-GCM-SIV (nonce-misuse resistant)
+[[bin]]
+name = "fuzz_aes_gcm_siv"
+path = "fuzz_targets/fuzz_aes_gcm_siv.rs"
+test = false
+doc = false
+bench = false
+
+# P-384 ECDH
+[[bin]]
+name = "fuzz_p384"
+path = "fuzz_targets/fuzz_p384.rs"
+test = false
+doc = false
+bench = false
+
+# secp256k1 ECDH
+[[bin]]
+name = "fuzz_secp256k1"
+path = "fuzz_targets/fuzz_secp256k1.rs"
+test = false
+doc = false
+bench = false
+
+# FROST threshold signatures
+[[bin]]
+name = "fuzz_frost"
+path = "fuzz_targets/fuzz_frost.rs"
 test = false
 doc = false
 bench = false

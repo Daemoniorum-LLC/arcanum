@@ -1,5 +1,8 @@
 //! Encrypted data containers.
 
+#[cfg(not(feature = "std"))]
+use alloc::{format, string::String, vec, vec::Vec};
+
 use arcanum_core::error::{Error, Result};
 use serde::{Deserialize, Serialize};
 
@@ -94,6 +97,7 @@ impl EncryptedPayload {
     }
 
     /// Extract nonce and ciphertext based on algorithm.
+    #[must_use = "this operation can fail; check the Result"]
     pub fn extract(&self, nonce_size: usize) -> Result<(&[u8], &[u8])> {
         if self.data.len() < nonce_size {
             return Err(Error::InvalidCiphertext);
@@ -125,6 +129,7 @@ impl EncryptedPayload {
     }
 
     /// Decode from bytes.
+    #[must_use = "parsing can fail; check the Result"]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         if bytes.len() < 2 {
             return Err(Error::InvalidCiphertext);
@@ -177,5 +182,117 @@ mod tests {
         let (extracted_nonce, extracted_ct) = decoded.extract(12).unwrap();
         assert_eq!(extracted_nonce, &nonce[..]);
         assert_eq!(extracted_ct, &ciphertext[..]);
+    }
+
+    #[test]
+    fn test_encrypted_data_with_aad() {
+        let data = EncryptedData::with_aad(
+            vec![10, 20, 30],
+            vec![1, 2],
+            "ChaCha20-Poly1305",
+            vec![0xAA, 0xBB],
+        );
+
+        assert!(
+            data.associated_data.is_some(),
+            "associated_data must be Some after with_aad"
+        );
+        assert_eq!(
+            data.associated_data.as_ref().unwrap(),
+            &vec![0xAA, 0xBB],
+            "associated_data content must match"
+        );
+        assert_eq!(data.algorithm, "ChaCha20-Poly1305");
+        assert_eq!(data.ciphertext, vec![10, 20, 30]);
+        assert_eq!(data.nonce, vec![1, 2]);
+    }
+
+    #[test]
+    fn test_encrypted_data_size() {
+        // Without AAD: size = ciphertext.len() + nonce.len()
+        let data_no_aad = EncryptedData::new(vec![0u8; 100], vec![0u8; 12], "AES-256-GCM");
+        assert_eq!(data_no_aad.size(), 112, "size without AAD = 100 + 12");
+
+        // With AAD: size = ciphertext.len() + nonce.len() + aad.len()
+        let data_with_aad = EncryptedData::with_aad(
+            vec![0u8; 50],
+            vec![0u8; 24],
+            "XChaCha20-Poly1305",
+            vec![0u8; 16],
+        );
+        assert_eq!(data_with_aad.size(), 90, "size with AAD = 50 + 24 + 16");
+
+        // Edge case: all empty
+        let data_empty = EncryptedData::new(vec![], vec![], "test");
+        assert_eq!(data_empty.size(), 0, "empty data should have size 0");
+    }
+
+    #[test]
+    fn test_encrypted_payload_algorithm_name() {
+        let cases: &[(u8, &str)] = &[
+            (EncryptedPayload::ALG_AES_128_GCM, "AES-128-GCM"),
+            (EncryptedPayload::ALG_AES_256_GCM, "AES-256-GCM"),
+            (EncryptedPayload::ALG_AES_256_GCM_SIV, "AES-256-GCM-SIV"),
+            (EncryptedPayload::ALG_CHACHA20_POLY1305, "ChaCha20-Poly1305"),
+            (EncryptedPayload::ALG_XCHACHA20_POLY1305, "XChaCha20-Poly1305"),
+            (99, "Unknown"),
+        ];
+
+        for &(alg_id, expected_name) in cases {
+            let payload = EncryptedPayload::new(alg_id, &[0u8; 12], &[0u8; 8]);
+            assert_eq!(
+                payload.algorithm_name(),
+                expected_name,
+                "algorithm_name for alg={alg_id} should be {expected_name}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_encrypted_payload_from_bytes_too_short() {
+        // Empty input
+        let err_empty = EncryptedPayload::from_bytes(&[])
+            .expect_err("should reject empty input");
+        assert!(
+            matches!(err_empty, Error::InvalidCiphertext),
+            "expected InvalidCiphertext for empty input, got: {err_empty:?}"
+        );
+
+        // Single byte (< 2 bytes minimum)
+        let err_one = EncryptedPayload::from_bytes(&[0x01])
+            .expect_err("should reject 1-byte input");
+        assert!(
+            matches!(err_one, Error::InvalidCiphertext),
+            "expected InvalidCiphertext for 1-byte input, got: {err_one:?}"
+        );
+    }
+
+    #[test]
+    fn test_encrypted_payload_from_bytes_wrong_version() {
+        // Version 2 is not supported (current version is 1)
+        let bytes = vec![0x02, EncryptedPayload::ALG_AES_256_GCM, 0x00];
+        let err = EncryptedPayload::from_bytes(&bytes)
+            .expect_err("should reject unsupported version");
+        assert!(
+            matches!(err, Error::UnsupportedFormat(ref msg) if msg.contains("version")),
+            "expected UnsupportedFormat mentioning version, got: {err:?}"
+        );
+    }
+
+    #[test]
+    fn test_encrypted_payload_extract_nonce_larger_than_data() {
+        // Create a payload with only 4 bytes of data, then try to extract a 12-byte nonce
+        let payload = EncryptedPayload {
+            version: EncryptedPayload::VERSION,
+            alg: EncryptedPayload::ALG_AES_256_GCM,
+            data: vec![0u8; 4],
+        };
+
+        let err = payload.extract(12)
+            .expect_err("should reject when nonce_size > data length");
+        assert!(
+            matches!(err, Error::InvalidCiphertext),
+            "expected InvalidCiphertext when nonce exceeds data, got: {err:?}"
+        );
     }
 }

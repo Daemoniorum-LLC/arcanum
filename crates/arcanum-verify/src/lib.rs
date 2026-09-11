@@ -44,8 +44,12 @@
 //! - **No buffer overflows**: Bounds checking verified
 //! - **No use-after-free**: Memory safety guaranteed
 
+#![cfg_attr(not(feature = "std"), no_std)]
 #![deny(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
 
 #[cfg(feature = "timing")]
 pub mod timing;
